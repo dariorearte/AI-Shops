@@ -11,7 +11,19 @@ html, body, #root {
 
 /* Este es el truco para que el mapa no se corte */
 .leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 1;
+}
+
+/* Evita que el mapa se rompa en pantallas grandes */
+.leaflet-map-pane {
+  z-index: 1 !important;
+}
+
+/* Esto obliga al mapa a ocupar todo su espacio */
+.leaflet-container {
   width: 100%;
   height: 100%;
-  z-index: 1;
+  background-color: #242424; /* Color oscuro de fondo mientras carga */
 }
