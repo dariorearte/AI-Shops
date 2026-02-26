@@ -1,314 +1,179 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import { 
-  ShoppingBag, User, MapPin, Bike, Star, Clock, X, Plus, Minus, 
-  Trash2, CreditCard, Banknote, Loader, CheckCircle2, ChevronRight,
-  Utensils, Smartphone, Shirt, Pill, ShoppingCart, LogOut, Search, Moon, Sun, Sparkles, LayoutGrid, Camera
-} from 'lucide-react';
-import { GoogleLogin, googleLogout } from '@react-oauth/google';
-import { jwtDecode } from "jwt-decode";
-import { supabase } from './supabaseClient';
+import React, { useState, useEffect, useRef } from 'react';
+import { createClient } from '@supabase/supabase-js';
+import { motion, AnimatePresence } from 'framer-motion';
 
-// --- CONFIGURACIÓN DE ICONOS LEAFLET (FIX) ---
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com',
-  iconUrl: 'https://unpkg.com',
-  shadowUrl: 'https://unpkg.com',
-});
+// --- CONFIGURACIÓN DE NÚCLEO ---
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
-function RecenterMap({ position }) {
-  const map = useMap();
-  useEffect(() => { 
-    if (position) { 
-      map.setView(position, 15); 
-      setTimeout(() => map.invalidateSize(), 500); 
-    } 
-  }, [position, map]);
-  return null;
-}
-
-function App() {
-  // --- 1. ESTADOS DE PERSISTENCIA Y NAVEGACIÓN ---
-  const [usuario, setUsuario] = useState(() => JSON.parse(localStorage.getItem('ai_user')) || null);
-  const [carrito, setCarrito] = useState(() => JSON.parse(localStorage.getItem('ai_cart')) || []);
-  const [historialPedidos, setHistorialPedidos] = useState(() => JSON.parse(localStorage.getItem('ai_history')) || []);
-  const [darkMode, setDarkMode] = useState(() => JSON.parse(localStorage.getItem('ai_dark')) ?? true);
-  const [caraVisible, setCaraVisible] = useState("mapa"); 
-  
-  // --- 2. ESTADOS DE FLUJO ---
-  const [busqueda, setBusqueda] = useState("");
-  const [position, setPosition] = useState(null);
-  const [tiendas, setTiendas] = useState([]);
-  const [tiendaSeleccionada, setTiendaSeleccionada] = useState(null);
-  const [verMenu, setVerMenu] = useState(false);
-  const [verMenuUsuario, setVerMenuUsuario] = useState(false);
-  const [enCheckout, setEnCheckout] = useState(false);
-  const [rastreando, setRastreando] = useState(false);
-  const [motoPos, setMotoPos] = useState(null);
-  const [pedidoEntregado, setPedidoEntregado] = useState(false);
-  const [metodoPago, setMetodoPago] = useState('efectivo');
-
-  // --- 3. ESTADOS DE IA ---
-  const [sugerenciaIA, setSugerenciaIA] = useState(null);
-  const [pensandoIA, setPensandoIA] = useState(false);
-  const [mostrarCupon, setMostrarCupon] = useState(false);
-  const [itemSugeridoIA, setItemSugeridoIA] = useState(null);
+const App = () => {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isAiActive, setIsAiActive] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [cart, setCart] = useState([]);
 
   useEffect(() => {
-    localStorage.setItem('ai_user', JSON.stringify(usuario));
-    localStorage.setItem('ai_cart', JSON.stringify(carrito));
-    localStorage.setItem('ai_history', JSON.stringify(historialPedidos));
-    localStorage.setItem('ai_dark', JSON.stringify(darkMode));
-    if (darkMode) document.documentElement.classList.add('dark');
-    else document.documentElement.classList.remove('dark');
-  }, [usuario, carrito, historialPedidos, darkMode]);
-  // --- 4. GEOLOCALIZACIÓN Y TIENDAS ---
-  useEffect(() => {
-    navigator.geolocation.getCurrentPosition((pos) => {
-      const { latitude: lat, longitude: lng } = pos.coords;
-      setPosition([lat, lng]);
-      setTiendas([
-        { 
-          id: 1, nombre: "Café AI", cat: "gastronomia", lat: lat + 0.003, lng: lng + 0.003, color: '#EF4444', 
-          productos: [
-            {id: 101, n: "Espresso Italiano", p: 1200, img: "https://images.unsplash.com"}, 
-            {id: 102, n: "Muffin Arándanos", p: 800, img: "https://images.unsplash.com"}
-          ] 
-        },
-        { id: 2, nombre: "Tech Store", cat: "tecnologia", lat: lat - 0.003, lng: lng - 0.003, color: '#3B82F6', 
-          productos: [
-            {id: 201, n: "Cargador Pro", p: 4500, img: "https://images.unsplash.com"},
-            {id: 202, n: "Audífonos In-Ear", p: 8500, img: "https://images.unsplash.com"}
-          ] 
-        },
-      ]);
-    });
+    fetchProducts();
+    // Saludo inicial de Jarvis
+    setTimeout(() => speak("Sistema AI Shops en línea. Bienvenido, señor."), 1000);
   }, []);
 
-  // --- 5. FUNCIONES LÓGICAS (RECONSTRUIDAS) ---
-  const handleLoginSuccess = (res) => {
-    const d = jwtDecode(res.credential);
-    const datosUser = { nombre: d.given_name, foto: d.picture, email: d.email };
-    setUsuario(datosUser);
-    setVerMenuUsuario(false);
-  };
-
-  const agregarAlCarrito = (p, esIA = false) => {
-    setCarrito(prev => {
-      const existe = prev.find(i => i.id === p.id);
-      if (existe) return prev.map(i => i.id === p.id ? {...i, cant: i.cant + 1} : i);
-      return [...prev, {...p, cant: 1, tId: tiendaSeleccionada?.id || 1}];
-    });
-    if (esIA) { setMostrarCupon(true); setSugerenciaIA(null); setItemSugeridoIA(null); }
-  };
-
-  const quitarDelCarrito = (id) => {
-    setCarrito(prev => {
-      const item = prev.find(i => i.id === id);
-      if (item?.cant > 1) return prev.map(i => i.id === id ? {...i, cant: i.cant - 1} : i);
-      return prev.filter(i => i.id !== id);
-    });
-  };
-
-  const consultarIA = () => {
-    setPensandoIA(true);
-    setTimeout(() => {
-      const items = carrito.map(i => i.n.toLowerCase());
-      if (items.some(n => n.includes("espresso")) && !items.some(n => n.includes("muffin"))) {
-        setSugerenciaIA("Tu Espresso se siente solo. ¿Sumamos un Muffin?");
-        setItemSugeridoIA({id: 102, n: "Muffin Arándanos", p: 800, img: "https://images.unsplash.com"});
-      } else { setSugerenciaIA("¡Tu selección es perfecta!"); setItemSugeridoIA(null); }
-      setPensandoIA(false);
-    }, 1200);
-  };
-
-  const confirmarPedido = () => {
-    setEnCheckout(true);
-    setTimeout(() => {
-      setEnCheckout(false); setCaraVisible("mapa"); setRastreando(true);
-      const tId = carrito[0]?.tId || 1;
-      const tOrigen = tiendas.find(t => t.id === tId) || tiendas[0];
-      setMotoPos([tOrigen.lat, tOrigen.lng]);
-      let t = 0;
-      const interval = setInterval(() => {
-        t += 0.05;
-        if (t >= 1) { clearInterval(interval); setMotoPos(position); setPedidoEntregado(true); }
-        else setMotoPos([tOrigen.lat + (position[0] - tOrigen.lat) * t, tOrigen.lng + (position[1] - tOrigen.lng) * t]);
-      }, 1000);
-    }, 1500);
-  };
-
-  const finalizarPedidoYLimpiar = async () => {
-    const total = carrito.reduce((acc, i) => acc + (i.p * i.cant), 0);
-    const pedido = { usuario_email: usuario?.email || 'anon@ai.com', total, items: carrito, fecha: new Date().toISOString() };
-    try { await supabase.from('pedidos').insert([pedido]); } catch (err) { console.error(err); }
-    setHistorialPedidos(prev => [pedido, ...prev]);
-    setRastreando(false); setPedidoEntregado(false); setCarrito([]); setCaraVisible("pedidos");
-  };
-  // --- 6. RENDERIZADO DE INTERFAZ ---
-  return (
-    <div className="flex flex-col h-screen w-full bg-slate-50 dark:bg-slate-950 overflow-hidden font-sans selection:bg-blue-500/30">
+  const fetchProducts = async () => {
+    try {
+      const { data, error } = await supabase.from('tiendas').select('*');
+      if (error) throw error;
       
-      {/* HEADER ULTRA-PREMIUM GLASS */}
-      <header className="fixed top-0 left-0 right-0 z-[100] px-6 py-4 flex justify-between items-center bg-white/60 dark:bg-slate-950/60 backdrop-blur-2xl border-b border-white/20 dark:border-white/5">
-        <div className="flex items-center gap-3 cursor-pointer group" onClick={() => {setCaraVisible("mapa"); setVerMenu(false);}}>
-          <div className="w-12 h-12 bg-slate-900 dark:bg-white rounded-[22px] flex items-center justify-center font-black text-white dark:text-slate-900 shadow-2xl transition-transform active:scale-90">AI</div>
-          <div className="flex flex-col leading-none text-left">
-            <h1 className="text-2xl font-black italic dark:text-white tracking-tighter uppercase">Shops</h1>
-            <span className="text-[9px] font-black text-blue-600 tracking-[0.2em] uppercase">Intelligence</span>
-          </div>
-        </div>
-        <button onClick={() => setVerMenuUsuario(!verMenuUsuario)} className="w-12 h-12 bg-white/80 dark:bg-slate-800 rounded-[22px] overflow-hidden border-2 border-white dark:border-slate-700 shadow-xl active:scale-90 transition-all">
-          {usuario ? <img src={usuario.foto} className="w-full h-full object-cover"/> : <User className="mx-auto mt-3 dark:text-white"/>}
-        </button>
+      const formatted = data.map(item => ({
+        id: item.id,
+        name: item.nombre,
+        price: item.precio,
+        category: item.categoria,
+        // Limpieza profunda de URL para asegurar que cargue
+        image_url: item.imagen ? item.imagen.trim() : "https://images.unsplash.com"
+      }));
+      setProducts(formatted);
+    } catch (err) {
+      console.error("Fallo de red:", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const speak = (text) => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'es-ES';
+    utterance.pitch = 0.8;
+    utterance.rate = 1;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const toggleVoiceIA = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'es-ES';
+    
+    if (!isAiActive) {
+      setIsAiActive(true);
+      recognition.start();
+            recognition.onresult = (event) => {
+        // Acceso correcto al texto capturado por el micrófono
+        const text = event.results[0][0].transcript; 
+        setTranscript(text);
+        console.log("🎙️ Jarvis escuchó:", text);
+        
+        // Verificamos que el texto exista antes de procesarlo
+        if (text) {
+          processAICommand(text.toLowerCase());
+        }
+      };
+
+      recognition.onend = () => setTimeout(() => setIsAiActive(false), 2500);
+    }
+  };
+
+  const processAICommand = (command) => {
+    if (command.includes("café") || command.includes("coffee")) {
+      speak("Abriendo Cyber Coffee para usted.");
+    } else if (command.includes("hamburguesa") || command.includes("burger")) {
+      speak("Neon Burger tiene las mejores recomendaciones hoy.");
+    } else {
+      speak("He escuchado: " + command + ". ¿Desea que busque algo específico?");
+    }
+  };
+
+  return (
+    <div style={styles.container}>
+      {/* HEADER DE LUJO */}
+      <header style={styles.header}>
+        <motion.h1 initial={{y:-20}} animate={{y:0}} style={styles.logo}>
+          AI <span style={{color: '#a855f7'}}>SHOPS</span>
+        </motion.h1>
       </header>
 
-      <main className="flex-1 relative mt-[80px] overflow-hidden">
-        
-        {/* --- CARA 1: E-COMMERCE (DISEÑO INDUCTIVO) --- */}
-        <div className={`absolute inset-0 z-30 bg-slate-50 dark:bg-slate-950 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] transform ${caraVisible === 'ecommerce' ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0 pointer-events-none'}`}>
-          <div className="p-8 h-full overflow-y-auto pb-40">
-             <div className="flex justify-between items-center mb-10">
-                <h2 className="text-5xl font-black italic dark:text-white tracking-tighter uppercase text-left leading-[0.85]">AI<br/><span className="text-blue-600">DEALS</span></h2>
-                <div className="p-4 bg-white dark:bg-slate-900 rounded-[25px] shadow-xl border dark:border-slate-800"><Search size={24} className="text-slate-400"/></div>
-             </div>
-             <div className="grid grid-cols-1 gap-10">
-               {tiendas.flatMap(t => t.productos).map(p => (
-                 <div key={p.id} className="bg-white dark:bg-slate-900 rounded-[50px] overflow-hidden shadow-2xl border dark:border-slate-800 group active:scale-95 transition-all">
-                    <img src={p.img} className="w-full h-80 object-cover" alt={p.n} />
-                    <div className="p-10 text-left">
-                       <h3 className="font-black text-3xl dark:text-white italic uppercase mb-4">{p.n}</h3>
-                       <div className="flex justify-between items-center">
-                          <span className="font-black text-4xl dark:text-white tracking-tighter">$ {p.p}</span>
-                          <button onClick={() => {setTiendaSeleccionada(tiendas[0]); setVerMenu(true);}} className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-10 py-5 rounded-3xl font-black uppercase text-[12px] tracking-widest shadow-2xl">Añadir</button>
-                       </div>
-                    </div>
-                 </div>
-               ))}
-             </div>
-          </div>
-        </div>
-
-        {/* --- CARA 2: MAPA (CENTRAL) --- */}
-        <div className={`absolute inset-0 z-10 transition-all duration-1000 ${caraVisible === 'mapa' ? 'scale-100 opacity-100' : 'scale-125 blur-3xl opacity-20 pointer-events-none'}`}>
-          {position && (
-            <MapContainer center={position} zoom={15} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-              <RecenterMap position={position} />
-              <Marker position={position} icon={L.divIcon({ html: `<div class="w-6 h-6 bg-blue-600 rounded-full border-4 border-white shadow-2xl animate-pulse"></div>` })} />
-              {tiendas.map(t => (
-                <Marker key={t.id} position={[t.lat, t.lng]} eventHandlers={{ click: () => setTiendaSeleccionada(t) }}
-                  icon={L.divIcon({ html: `<div class="w-14 h-14 rounded-[25px] border-4 border-white shadow-2xl flex items-center justify-center text-white" style="background-color: ${t.color}"><MapPin size={24}/></div>` })}
+      {/* GRID DE PRODUCTOS PROFESIONAL */}
+      <main style={styles.feed}>
+        <div style={styles.grid}>
+          {products.map((p, index) => (
+            <motion.div 
+              key={p.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              style={styles.card}
+            >
+              <div style={styles.imageContainer}>
+                <img 
+                  src={p.image_url} 
+                  style={styles.image} 
+                  alt={p.name}
+                  onError={(e) => { e.target.src = "https://images.unsplash.com"; }}
                 />
-              ))}
-              {rastreando && motoPos && <Marker position={motoPos} icon={L.divIcon({ html: `<div class="bg-blue-600 p-3 rounded-full border-4 border-white shadow-2xl text-white animate-bounce"><Bike size={28}/></div>` })} />}
-            </MapContainer>
-          )}
-        </div>
-        {/* --- CARA 3: MARKETPLACE (COMUNIDAD) --- */}
-        <div className={`absolute inset-0 z-30 bg-slate-50 dark:bg-slate-950 transition-all duration-700 ease-out transform ${caraVisible === 'social' ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}`}>
-           <div className="p-8 h-full overflow-y-auto pb-40">
-              <div className="flex justify-between items-center mb-10">
-                 <h2 className="text-5xl font-black italic dark:text-white tracking-tighter uppercase text-left leading-[0.85]">COMMU<br/><span className="text-blue-600">NITY</span></h2>
-                 <button className="bg-blue-600 text-white p-5 rounded-[28px] shadow-2xl active:scale-90 transition-all"><Camera size={28}/></button>
               </div>
-              <div className="grid grid-cols-2 gap-5">
-                {[1,2,3,4].map(i => (
-                  <div key={i} className="bg-white dark:bg-slate-900 rounded-[35px] overflow-hidden border dark:border-slate-800 shadow-xl group active:scale-95 transition-all">
-                    <div className="h-48 bg-slate-100 dark:bg-slate-800 relative flex items-center justify-center opacity-30">
-                       <ShoppingCart size={40}/>
-                    </div>
-                    <div className="p-6 text-left">
-                       <p className="font-black text-2xl dark:text-white leading-none mb-1">$ {i * 2500}</p>
-                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Articulo • {i}km cerca</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-           </div>
-        </div>
-
-        {/* MODAL MENU TIENDA */}
-        {verMenu && tiendaSeleccionada && (
-          <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xl flex items-end">
-            <div className="bg-white dark:bg-slate-900 w-full rounded-t-[60px] p-10 max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom-full border-t dark:border-white/10 shadow-2xl">
-              <div className="flex justify-between items-center mb-10"><h2 className="text-3xl font-black dark:text-white italic uppercase tracking-tighter leading-none">Menú</h2><button onClick={() => setVerMenu(false)} className="p-4 bg-slate-100 dark:bg-slate-800 rounded-full dark:text-white"><X size={24}/></button></div>
-              <div className="space-y-6 mb-12">{(tiendaSeleccionada.productos || tiendas[0].productos).map(p => {
-                const cant = carrito.find(i => i.id === p.id)?.cant || 0;
-                return (
-                  <div key={p.id} className="flex items-center gap-6 p-5 bg-slate-50 dark:bg-slate-800/50 rounded-[35px] border dark:border-slate-800 shadow-sm">
-                    <img src={p.img} className="w-24 h-24 rounded-[25px] object-cover shadow-xl" />
-                    <div className="flex-1 text-left"><p className="font-black dark:text-white text-lg uppercase italic leading-none mb-2">{p.n}</p><p className="font-black text-xl text-blue-600 dark:text-blue-400">$ {p.p}</p></div>
-                    <div className="flex items-center gap-4 bg-white dark:bg-slate-900 p-2 rounded-2xl border dark:border-slate-700 shadow-xl">
-                      <button onClick={() => quitarDelCarrito(p.id)} className="p-2 text-red-500"><Minus size={20}/></button>
-                      <span className="font-black text-xl dark:text-white w-6 text-center">{cant}</span>
-                      <button onClick={() => agregarAlCarrito(p)} className="p-2 text-green-600"><Plus size={20}/></button>
-                    </div>
-                  </div>
-                )})}</div>
-              <button onClick={() => {setVerMenu(false); setCaraVisible("carrito");}} className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black py-6 rounded-[30px] uppercase tracking-[0.2em] text-xs shadow-2xl">Revisar Bolsa ({carrito.length})</button>
-            </div>
-          </div>
-        )}
-
-        {/* CARRITO / BOLSA */}
-        {caraVisible === "carrito" && (
-          <div className="absolute inset-0 z-50 bg-white dark:bg-slate-950 p-8 overflow-y-auto animate-in slide-in-from-right-20">
-            <div className="flex justify-between items-center mb-10"><h2 className="text-3xl font-black dark:text-white italic uppercase tracking-tighter">Bolsa</h2><button onClick={() => setCaraVisible("mapa")} className="p-4 bg-slate-100 dark:bg-slate-800 rounded-2xl dark:text-white"><X size={20}/></button></div>
-            {carrito.length === 0 ? <p className="text-center opacity-10 py-32 font-black text-4xl uppercase italic">Vacia</p> : (
-              <div className="flex flex-col gap-8">
-                <div className="p-8 bg-gradient-to-br from-blue-600 to-purple-700 rounded-[40px] text-white shadow-2xl relative overflow-hidden group">
-                  <div className="flex justify-between items-center mb-6"><div className="flex items-center gap-2 font-black uppercase text-[10px] tracking-widest"><Star size={16}/> AI Engine</div><button onClick={consultarIA} disabled={pensandoIA} className="bg-white/20 px-4 py-1.5 rounded-full text-[10px] font-black backdrop-blur-md uppercase">{pensandoIA ? "Procesando..." : "Optimizar"}</button></div>
-                  {sugerenciaIA && (
-                    <div className="animate-in fade-in slide-in-from-top-2">
-                      <p className="text-lg font-black italic mb-6 leading-tight">"{sugerenciaIA}"</p>
-                      {itemSugeridoIA && <button onClick={() => agregarAlCarrito(itemSugeridoIA, true)} className="w-full bg-white text-slate-900 font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all">Sumar {itemSugeridoIA.n}</button>}
-                    </div>
-                  )}
+              <div style={styles.cardContent}>
+                <span style={styles.category}>{p.category}</span>
+                <h3 style={styles.productName}>{p.name}</h3>
+                <div style={styles.cardFooter}>
+                  <span style={styles.price}>{p.price}</span>
+                  <button style={styles.addBtn}>+</button>
                 </div>
-                {carrito.map(i => (
-                  <div key={i.id} className="flex justify-between items-center p-5 bg-slate-50 dark:bg-slate-900 rounded-[32px] border dark:border-slate-800"><div className="flex items-center gap-4 text-left"><img src={i.img} className="w-16 h-16 rounded-[20px] object-cover" /><p className="font-black dark:text-white text-sm uppercase italic">{i.cant}x {i.n}</p></div><p className="font-black dark:text-white text-lg tracking-tighter">$ {i.p * i.cant}</p></div>
-                ))}
-                <button onClick={confirmarPedido} className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black py-6 rounded-[30px] shadow-2xl text-lg flex items-center justify-center gap-3 uppercase tracking-widest">
-                  {enCheckout ? <Loader className="animate-spin" size={24}/> : "Confirmar Compra"}
-                </button>
               </div>
-            )}
-          </div>
-        )}
+            </motion.div>
+          ))}
+        </div>
       </main>
 
-      {/* NAV INFERIOR PREMIUM */}
-      <nav className="fixed bottom-8 left-8 right-8 z-50 h-24 bg-white/70 dark:bg-slate-900/70 backdrop-blur-3xl rounded-[40px] border border-white/20 dark:border-white/5 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] flex justify-around items-center px-6">
-        <button onClick={() => setCaraVisible("ecommerce")} className={`p-5 rounded-[28px] transition-all duration-500 ${caraVisible === 'ecommerce' ? "bg-blue-600 text-white shadow-2xl scale-110" : "text-slate-400 opacity-50"}`}>
-          <LayoutGrid size={28} strokeWidth={2.5}/>
-        </button>
-        <button onClick={() => setCaraVisible("mapa")} className={`p-6 rounded-[30px] transition-all duration-500 transform ${caraVisible === 'mapa' ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-2xl scale-125 -translate-y-4" : "text-slate-400 opacity-50"}`}>
-          <MapPin size={32} strokeWidth={2.5}/>
-        </button>
-        <button onClick={() => setCaraVisible("social")} className={`p-5 rounded-[28px] transition-all duration-500 ${caraVisible === 'social' ? "bg-blue-600 text-white shadow-2xl scale-110" : "text-slate-400 opacity-50"}`}>
-          <ShoppingCart size={28} strokeWidth={2.5}/>
-        </button>
-      </nav>
+      {/* OVERLAY SIRI FUTURISTA */}
+      <AnimatePresence>
+        {isAiActive && (
+          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} style={styles.siriOverlay}>
+            <motion.div 
+              animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+              style={styles.siriCircle} 
+            />
+            <p style={styles.transcript}>{transcript || "Escuchando..."}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* POP-UP CUPÓN IA */}
-      {mostrarCupon && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-8 bg-black/80 backdrop-blur-xl animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-[50px] p-10 shadow-2xl border-4 border-blue-600 relative overflow-hidden">
-            <div className="flex flex-col items-center text-center">
-              <div className="w-24 h-24 bg-blue-600 rounded-[30px] flex items-center justify-center mb-8 shadow-2xl rotate-12 animate-bounce"><Sparkles size={48} className="text-white"/></div>
-              <h3 className="text-4xl font-black dark:text-white italic tracking-tighter mb-8 uppercase leading-none">IA Match!</h3>
-              <div className="w-full py-5 bg-slate-100 dark:bg-slate-800 rounded-3xl border-2 border-dashed border-blue-500 mb-8"><span className="text-3xl font-black text-blue-600 uppercase tracking-widest">AISHOP15</span></div>
-              <button onClick={() => setMostrarCupon(false)} className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black py-5 rounded-2xl uppercase text-[10px]">Cerrar</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* NAV BAR ESTILO IPHONE */}
+      <nav style={styles.nav}>
+        <button style={styles.navIcon}>🏠</button>
+        <button onClick={toggleVoiceIA} style={styles.aiButton}>
+          <div style={styles.aiInnerCircle}></div>
+        </button>
+        <button style={styles.navIcon}>🛒</button>
+      </nav>
     </div>
   );
-}
+};
+
+const styles = {
+  container: { backgroundColor: '#000', minHeight: '100vh', color: '#fff', fontFamily: "'Inter', sans-serif" },
+  header: { padding: '30px 20px', textAlign: 'center', background: 'linear-gradient(to bottom, #111, transparent)' },
+  logo: { fontSize: '26px', fontWeight: '900', letterSpacing: '5px' },
+  feed: { padding: '0 20px 100px' },
+  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' },
+  card: { backgroundColor: '#0a0a0a', borderRadius: '28px', overflow: 'hidden', border: '1px solid #1a1a1a' },
+  imageContainer: { width: '100%', aspectRatio: '1/1', backgroundColor: '#111' },
+  image: { width: '100%', height: '100%', objectFit: 'cover' },
+  cardContent: { padding: '15px' },
+  category: { fontSize: '10px', color: '#a855f7', textTransform: 'uppercase', fontWeight: 'bold' },
+  productName: { fontSize: '16px', margin: '5px 0', fontWeight: '600' },
+  cardFooter: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' },
+  price: { fontSize: '18px', fontWeight: '800', color: '#fff' },
+  addBtn: { background: '#a855f7', border: 'none', color: '#fff', width: '30px', height: '30px', borderRadius: '10px', cursor: 'pointer' },
+  nav: { position: 'fixed', bottom: '20px', left: '5%', width: '90%', height: '70px', backgroundColor: 'rgba(20,20,20,0.8)', backdropFilter: 'blur(15px)', borderRadius: '35px', display: 'flex', justifyContent: 'space-around', alignItems: 'center', border: '1px solid #333' },
+  aiButton: { width: '55px', height: '55px', borderRadius: '50%', background: 'linear-gradient(45deg, #a855f7, #6366f1)', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 0 20px rgba(168,85,247,0.4)' },
+  aiInnerCircle: { width: '20px', height: '20px', borderRadius: '50%', border: '2px solid #fff' },
+  navIcon: { background: 'none', border: 'none', fontSize: '22px', opacity: 0.6 },
+  siriOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.9)', zIndex: 1000, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' },
+  siriCircle: { width: '150px', height: '150px', borderRadius: '50%', background: 'radial-gradient(circle, #a855f7 0%, transparent 70%)', boxShadow: '0 0 60px #a855f7' },
+  transcript: { marginTop: '40px', fontSize: '22px', color: '#a855f7', fontWeight: '300' }
+};
 
 export default App;
