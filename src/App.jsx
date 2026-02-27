@@ -191,3 +191,40 @@ const App = () => {
 
 // ... (Aquí irían los styles con el CSS robusto que definimos) ...
 export default App;
+
+const styles = {
+  container: { background: '#000', minHeight: '100vh', color: '#fff', fontFamily: 'Inter, sans-serif' },
+  loginPage: { height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', background: '#000' },
+  mainBtn: { background: 'none', border: '1px solid #a855f7', color: '#fff', padding: '15px 30px', borderRadius: '30px', letterSpacing: '2px', cursor: 'pointer' },
+  neonTitle: { fontSize: '40px', letterSpacing: '10px', color: '#a855f7', textShadow: '0 0 20px #a855f7', marginBottom: '40px' },
+  cardContainer: { perspective: '1000px', padding: '20px', paddingTop: '40px' },
+  idCard: { width: '100%', height: '220px', background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(25px)', borderRadius: '30px', border: '1px solid rgba(168, 85, 247, 0.4)', padding: '25px', transformStyle: 'preserve-3d', cursor: 'pointer' },
+  cardFront: { height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' },
+  cardBack: { height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', transform: 'rotateY(180deg)' },
+  rangoBadge: { position: 'absolute', top: '20px', right: '20px', background: '#a855f7', padding: '5px 15px', borderRadius: '15px', fontSize: '10px', fontWeight: 'bold' },
+  userName: { fontSize: '24px', fontWeight: '800', letterSpacing: '1px', margin: '10px 0' },
+  walletInfo: { marginTop: '20px', fontSize: '14px', fontWeight: 'bold', color: '#a855f7' },
+  miniProgress: { width: '40px', height: '4px', background: '#a855f7', borderRadius: '2px', marginTop: '5px' },
+  switchGroup: { display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' },
+  btn: { background: 'rgba(255,255,255,0.05)', border: '1px solid #333', color: '#fff', padding: '10px', borderRadius: '15px', fontSize: '11px', cursor: 'pointer' },
+  activeModeBtn: { background: '#a855f7', border: 'none', color: '#fff', padding: '10px', borderRadius: '15px', fontSize: '11px', fontWeight: 'bold', boxShadow: '0 0 15px #a855f7', cursor: 'pointer' },
+  mainFeed: { padding: '0 20px 120px' },
+  sectionTitle: { color: '#a855f7', letterSpacing: '3px', fontSize: '12px', marginBottom: '20px', textAlign: 'center', opacity: 0.8 },
+  storeGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' },
+  storeCard: { background: '#0a0a0a', padding: '12px', borderRadius: '25px', border: '1px solid #1a1a1a', textAlign: 'center' },
+  storeImg: { width: '100%', borderRadius: '18px', aspectRatio: '1/1', objectFit: 'cover' },
+  payBtn: { position: 'fixed', bottom: '110px', left: '10%', width: '80%', background: '#a855f7', padding: '18px', border: 'none', borderRadius: '20px', color: '#fff', fontWeight: '900', boxShadow: '0 10px 30px rgba(168,85,247,0.4)', zIndex: 10, cursor: 'pointer' },
+  sellerPanel: { textAlign: 'center', paddingTop: '20px' },
+  statsBox: { display: 'flex', justifyContent: 'space-around', margin: '20px 0' },
+  actionBtn: { width: '100%', background: 'none', border: '1px solid #a855f7', color: '#fff', padding: '15px', borderRadius: '15px', fontWeight: 'bold', cursor: 'pointer' },
+  ryderRadar: { height: '300px', display: 'flex', justifyContent: 'center', alignItems: 'center' },
+  radarCircle: { width: '200px', height: '200px', borderRadius: '50%', border: '1px solid #a855f7', display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' },
+  radarWave: { position: 'absolute', width: '100%', height: '100%', borderRadius: '50%', border: '2px solid #a855f7' },
+  bottomNav: { position: 'fixed', bottom: '30px', width: '100%', display: 'flex', justifyContent: 'center', zIndex: 100 },
+  neonVoiceBtn: { background: 'none', border: 'none', cursor: 'pointer' },
+  neonInner: { width: '65px', height: '65px', borderRadius: '50%', background: 'radial-gradient(circle, #a855f7 0%, #6366f1 100%)', boxShadow: '0 0 30px rgba(168, 85, 247, 0.6)' },
+  neonText: { color: '#a855f7', letterSpacing: '4px', fontSize: '16px', fontWeight: 'bold' }
+};
+
+export default App;
+
