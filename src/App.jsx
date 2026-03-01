@@ -34,25 +34,33 @@ const App = () => {
   const [learningData, setLearningData] = useState([]);
   const [transcript, setTranscript] = useState("");
 
-    // 1. Iniciamos en null para saber que aún no tenemos posición
+    // ESTADOS DE GEOPOSICIÓN
   const [userLocation, setUserLocation] = useState(null); 
-  const [locationError, setLocationError] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
 
-  useEffect(() => {
-    // Intentar obtener GPS real al arrancar
+  const getGPS = () => {
     if ("geolocation" in navigator) {
+      speak("Sincronizando con satélites GPS...");
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-          speak("Ubicación GPS confirmada. Radar sincronizado.");
+          const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setUserLocation(coords);
+          speak("Ubicación confirmada. Radar en línea.");
         },
-        () => {
-          setLocationError(true);
-          speak("Acceso a ubicación denegado. Por favor, indique su ciudad de operaciones.");
-        }
+        (error) => {
+          console.error("GPS Error:", error);
+          setShowLocationModal(true);
+          speak("Error de triangulación. Por favor, indique su ciudad manualmente.");
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
       );
     }
+  };
+
+  useEffect(() => {
+    getGPS();
   }, []);
+
 
   // Función para cargar ciudad manualmente (Geocoding)
   const setManualCity = async (city) => {
@@ -382,11 +390,38 @@ const App = () => {
                 </div>
               ) : (
                 <div style={styles.mapCanvas}>
-                  <MapContainer center={[userLocation.lat, userLocation.lng]} zoom={13} style={{height: '100%'}}>
-                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://www.openstreetmap.org">OpenStreetMap</a> contributors'/>
-                    <Circle center={[userLocation.lat, userLocation.lng]} radius={radius * 1000} pathOptions={{ color: '#a855f7' }} />
-                  </MapContainer>
+                    {!userLocation ? (
+                    <div style={styles.locationFallback}>
+                      <Navigation size={40} color="#a855f7" className="animate-pulse" />
+                      <p style={{marginTop: '20px', fontSize: '12px'}}>BUSCANDO SEÑAL...</p>
+                      <input 
+                        placeholder="O ingrese ciudad manualmente..." 
+                        style={styles.inputSearch}
+                        onKeyDown={(e) => e.key === 'Enter' && setManualCity(e.target.value)}
+                      />
+                      <button onClick={getGPS} style={{marginTop: '10px', color: '#a855f7', fontSize: '10px', background: 'none', border: 'none'}}>REINTENTAR GPS</button>
+                    </div>
+                  ) : (
+                    <MapContainer 
+                      center={[userLocation.lat, userLocation.lng]} 
+                      zoom={13} 
+                      style={{height: '100%', width: '100%'}}
+                      zoomControl={false}
+                    >
+                      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                      <Circle 
+                        center={[userLocation.lat, userLocation.lng]} 
+                        radius={radius * 1000} 
+                        pathOptions={{ color: '#a855f7', fillColor: '#a855f7', fillOpacity: 0.1 }} 
+                      />
+                      {/* EL PIN DE SU UBICACIÓN REAL */}
+                      <Marker position={[userLocation.lat, userLocation.lng]}>
+                        <Popup>Señor, usted está aquí.</Popup>
+                      </Marker>
+                    </MapContainer>
+                  )}
                 </div>
+
               )}
             </motion.div>
           )}
