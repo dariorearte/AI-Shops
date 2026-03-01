@@ -45,25 +45,24 @@ const App = () => {
     const setManualCity = async (city) => {
     if (!city) return;
     try {
-      // URL CORREGIDA: Sin llaves raras, con parámetros reales
+      // URL CORREGIDA: Sin llaves, con parámetros reales de Nominatim
       const url = `https://nominatim.openstreetmap.org{encodeURIComponent(city)}`;
-      
       const res = await fetch(url);
       const data = await res.json();
-
+      
       if (data && data.length > 0) {
         setUserLocation({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
         setLocationError(false);
         speak(`Radar desplegado sobre ${city}, señor.`);
       } else {
-        speak("Coordenadas no encontradas.");
+        speak("Coordenadas no encontradas en la red neural.");
       }
     } catch (e) {
       speak("Fallo en el satélite de búsqueda.");
     }
   };
   
-
+  
   const getGPS = () => {
   if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
