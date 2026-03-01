@@ -54,17 +54,15 @@ const App = () => {
     }
   };
 
-  // --- FUNCIÓN DE BÚSQUEDA MANUAL (REPARACIÓN OMEGA) ---  
+    // --- FUNCIÓN DE BÚSQUEDA MANUAL (REPARADA) ---  
   const setManualCity = async (city) => {
     if (!city) return;
     try {
-      // URL CORREGIDA: Estructura real de Nominatim API
       const url = `https://nominatim.openstreetmap.org{encodeURIComponent(city)}`;
       const res = await fetch(url);
       const data = await res.json();
       
       if (data && data.length > 0) {
-        // Nominatim devuelve un array, tomamos el primer resultado [0]
         setUserLocation({ 
           lat: parseFloat(data[0].lat), 
           lng: parseFloat(data[0].lon) 
@@ -78,7 +76,23 @@ const App = () => {
       console.error("Fallo en Geocoding:", e);
       speak("Fallo en el satélite de búsqueda.");
     }
-  };
+  }; // <--- ESTA LLAVE CIERRA LA FUNCIÓN
+
+  // --- EFECTO DE ARRANQUE NEURAL ---
+  useEffect(() => {
+    const initializeSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      
+      if (session) {
+        fetchProfile(session.user.id);
+        // initializeRealtime(session.user.id); // Active esto cuando la función esté lista
+      }
+    };
+
+    initializeSession();
+    fetchGlobalMarket();
+  }, []); // <--- ESTA LLAVE Y PARÉNTESIS CIERRAN EL USEEFFECT
 
   
   const getGPS = () => {
@@ -679,8 +693,6 @@ const styles = {
   notificationBadge: { position: 'absolute', top: -5, right: -5, background: '#ff0055', color: '#fff', fontSize: '8px', width: '15px', height: '15px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', border: '1px solid #000',boxShadow: '0 0 10px rgba(255,0,85,0.5)'},
   locationFallback: { padding: '40px 20px', textAlign: 'center', background: '#0a0a0a', borderRadius: '30px', border: '1px solid #a855f7' }
 
-}; // <--- CIERRA EL OBJETO STYLES
+};
 
-export default App; // <--- CIERRE FINAL
-
-
+export default App;
