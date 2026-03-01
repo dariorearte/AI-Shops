@@ -34,13 +34,18 @@ const App = () => {
   const [learningData, setLearningData] = useState([]);
   const [transcript, setTranscript] = useState("");
 
-        // --- ESTADOS DE GEOPOSICIÓN NEURAL ---
-  const [userLocation, setUserLocation] = useState(null); 
-  const [locationError, setLocationError] = useState(false); // SOLUCIONA EL ERROR 382
+          // --- NUCLEO DE INTELIGENCIA GEOGRÁFICA (SANEADO) ---
+  const [userLocation, setUserLocation] = useState(null);
+  const [locationError, setLocationError] = useState(false);
+  const [radius, setRadius] = useState(15);
+  const [stores, setStores] = useState([]);
+  const [filterCategory, setFilterCategory] = useState('all');
+
+  // Función de Búsqueda Manual (Corregida)
   const setManualCity = async (city) => {
     if (!city) return;
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org{city}`);
+      const res = await fetch(`https://nominatim.openstreetmap.org{encodeURIComponent(city)}`);
       const data = await res.json();
       if (data && data.length > 0) {
         setUserLocation({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
@@ -56,20 +61,18 @@ const App = () => {
 
 
   const getGPS = () => {
-    if ("geolocation" in navigator) {
-      speak("Sincronizando con satélites GPS...");
+  if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          setUserLocation(coords);
-          speak("Ubicación confirmada. Radar en línea.");
+          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          setLocationError(false);
+          speak("Ubicación GPS confirmada.");
         },
-        (error) => {
-          console.error("GPS Error:", error);
-          setShowLocationModal(true);
-          speak("Error de triangulación. Por favor, indique su ciudad manualmente.");
+        (err) => {
+          setLocationError(true);
+          speak("Acceso denegado. Indique su ciudad manualmente.");
         },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 5000 }
       );
     }
   };
@@ -77,29 +80,7 @@ const App = () => {
   useEffect(() => {
     getGPS();
   }, []);
-
-
-  // Función para cargar ciudad manualmente (Geocoding)
-  const setManualCity = async (city) => {
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org{city}`);
-      const data = await res.json();
-      if (data.length > 0) {
-        setUserLocation({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
-        setLocationError(false);
-        speak(`Desplegando radar sobre ${city}.`);
-      } else {
-        speak("Ciudad no encontrada en la red neural.");
-      }
-    } catch (e) {
-      speak("Error de conexión con el satélite de búsqueda.");
-    }
-  };
-
-  // --- MOTOR GEOGRÁFICO Y FILTROS ---
-  const [radius, setRadius] = useState(15); // 1km a 500km
-  const [stores, setStores] = useState([]);
-  const [filterCategory, setFilterCategory] = useState('all');
+  
 
   // --- MARKETPLACE Y TRANSACCIONES ---
   const [marketItems, setMarketItems] = useState([]);
