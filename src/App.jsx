@@ -16,6 +16,8 @@ const App = () => {
   const [activeMode, setActiveMode] = useState('shopper'); // shopper, shop, ryder
   const [profile, setProfile] = useState(null);
   const [wallet, setWallet] = useState(null);
+  const [hasNotifiedCategory, setHasNotifiedCategory] = useState(null); // Evita repeticiones
+
 
   // --- INTELIGENCIA NEURAL (N.E.O.N. AI) ---
   const [isAiActive, setIsAiActive] = useState(false);
@@ -115,7 +117,7 @@ const App = () => {
   const [neuralScore, setNeuralScore] = useState(0);
   const [lastActions, setLastActions] = useState([]);
 
-  const trackAction = (actionType, metadata) => {
+    const trackAction = (actionType, metadata) => {
     const newAction = { type: actionType, meta: metadata, timestamp: Date.now() };
     const updatedActions = [newAction, ...lastActions].slice(0, 50);
     setLastActions(updatedActions);
@@ -126,9 +128,20 @@ const App = () => {
     }, {});
 
     Object.keys(categoryCounts).forEach(cat => {
-      if (categoryCounts[cat] >= 3) {
-        speak(`Señor, he detectado un interés recurrente en ${cat}. He optimizado el radar para mostrarle ofertas exclusivas.`);
+      // OPTIMIZACIÓN: Solo actúa si llega a 3 clics Y no ha notificado esta categoría antes
+      if (categoryCounts[cat] === 3 && hasNotifiedCategory !== cat) {
+        setHasNotifiedCategory(cat); // Marcamos como notificado
+        
+        speak(`Señor, he detectado un interés recurrente en ${cat}. He optimizado el radar para usted.`);
+        
+        // FIX: Forzamos el cambio de interfaz al radar (Izquierda)
         setFilterCategory(cat);
+        setTimeout(() => {
+          setPanel('left'); // Cambio automático con delay para que se escuche la voz
+        }, 500);
+
+        // Resetear la memoria de la IA después de 2 minutos para que pueda volver a sugerir otros rubros
+        setTimeout(() => setHasNotifiedCategory(null), 120000); 
       }
     });
   };
@@ -225,19 +238,30 @@ const App = () => {
 
 
           {/* PANEL DERECHO: NEURAL MARKETPLACE (C2C SOCIAL) */}
-          {panel === 'right' && (
+                    {panel === 'right' && (
             <motion.div key="right" initial={{ x: 500 }} animate={{ x: 0 }} exit={{ x: 500 }} style={styles.panelFull}>
-              <div style={styles.marketSearch}>
-                <h3>MARKETPLACE C2C</h3>
-                <PlusCircle size={24} color="#a855f7" />
+              <div style={styles.marketHeader}>
+                <h3>NEURAL MARKETPLACE</h3>
+                <MessageCircle size={24} color="#a855f7" />
               </div>
+              
+              {/* MINI CHAT INTEGRADO */}
+              <div style={styles.chatBox}>
+                <div style={styles.chatMessage}>
+                  <p style={{fontSize:'10px', color:'#a855f7'}}>N.E.O.N. SECURITY</p>
+                  <p style={{fontSize:'11px'}}>Chat cifrado activo. No comparta datos sensibles por fuera de la App.</p>
+                </div>
+                {/* Aquí fluirán los mensajes de Supabase Realtime */}
+              </div>
+
               <div style={styles.socialGrid}>
-                {[1,2,3,4,5,6].map(i => (
-                  <div key={i} style={styles.socialCard}>
-                    <div style={styles.socialImg} />
-                    <div style={styles.socialMeta}>
-                      <Heart size={14} /> <MessageCircle size={14} />
-                    </div>
+                {marketItems.map(item => (
+                  <div key={item.id} style={styles.socialCard}>
+                     <div style={styles.socialImg}><LayoutGrid size={20} opacity={0.1}/></div>
+                     <div style={styles.socialMeta}>
+                        <b>{item.nombre}</b>
+                        <button style={styles.chatBtn}>CONSULTAR</button>
+                     </div>
                   </div>
                 ))}
               </div>
