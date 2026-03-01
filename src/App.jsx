@@ -383,11 +383,7 @@ const App = () => {
               ) : (
                 <div style={styles.mapCanvas}>
                   <MapContainer center={[userLocation.lat, userLocation.lng]} zoom={13} style={{height: '100%'}}>
-                    <TileLayer
-                      url="https://{s}://{z}/{x}/{y}{r}.png"
-                      subdomains="abcd"
-                      attribution='&copy; <a href="https://www.openstreetmap.org">OpenStreetMap</a> contributors &copy; <a href="https://carto.com">CARTO</a>'
-                    />
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://www.openstreetmap.org">OpenStreetMap</a> contributors'/>
                     <Circle center={[userLocation.lat, userLocation.lng]} radius={radius * 1000} pathOptions={{ color: '#a855f7' }} />
                   </MapContainer>
                 </div>
