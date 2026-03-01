@@ -34,6 +34,7 @@ const App = () => {
   // --- MARKETPLACE Y TRANSACCIONES ---
   const [marketItems, setMarketItems] = useState([]);
   const [cart, setCart] = useState([]);
+  const [isPosting, setIsPosting] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -121,6 +122,49 @@ const App = () => {
     const newAction = { type: actionType, meta: metadata, timestamp: Date.now() };
     const updatedActions = [newAction, ...lastActions].slice(0, 50);
     setLastActions(updatedActions);
+
+      const handleSocialPost = async () => {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file'; fileInput.accept = 'image/*'; fileInput.multiple = true;
+    
+    fileInput.onchange = async (e) => {
+      const files = Array.from(e.target.files);
+      if (files.length === 0) return;
+
+      const nombre = prompt("¿Qué está vendiendo, señor?");
+      const precio = prompt("¿Precio de salida?");
+      
+      setIsPosting(true);
+      speak("Procesando imágenes en la red neural... Por favor, aguarde.");
+
+      try {
+        const uploadPromises = files.map(async (file) => {
+          const fileName = `${Math.random()}-${file.name}`;
+          const { data } = await supabase.storage.from('productos-fotos').upload(fileName, file);
+          return supabase.storage.from('productos-fotos').getPublicUrl(fileName).data.publicUrl;
+        });
+
+        const urls = await Promise.all(uploadPromises);
+
+        await supabase.from('marketplace_c2c').insert([{
+          vendedor_id: session.user.id,
+          nombre,
+          precio: parseFloat(precio),
+          fotos: urls,
+          estado_articulo: 'usado_como_nuevo'
+        }]);
+
+        speak("Artículo publicado con éxito en el Marketplace Social. Los Ryders cercanos ya han sido notificados para logística potencial.");
+        fetchGlobalMarket(); // Refrescar vista
+      } catch (err) {
+        speak("Error en el protocolo de subida.");
+      } finally {
+        setIsPosting(false);
+      }
+    };
+    fileInput.click();
+  };
+
     
     const categoryCounts = updatedActions.reduce((acc, act) => {
       if (act.type === 'view_product') acc[act.meta.category] = (acc[act.meta.category] || 0) + 1;
@@ -238,35 +282,49 @@ const App = () => {
 
 
           {/* PANEL DERECHO: NEURAL MARKETPLACE (C2C SOCIAL) */}
-                    {panel === 'right' && (
+            {panel === 'right' && (
             <motion.div key="right" initial={{ x: 500 }} animate={{ x: 0 }} exit={{ x: 500 }} style={styles.panelFull}>
               <div style={styles.marketHeader}>
                 <h3>NEURAL MARKETPLACE</h3>
-                <MessageCircle size={24} color="#a855f7" />
+                {/* ESTE ES EL BOTÓN QUE ACTIVA LA CARGA C2C */}
+                <PlusCircle 
+                  size={24} 
+                  color="#a855f7" 
+                  onClick={handleSocialPost} 
+                  style={{cursor:'pointer'}}
+                />
               </div>
               
               {/* MINI CHAT INTEGRADO */}
               <div style={styles.chatBox}>
                 <div style={styles.chatMessage}>
                   <p style={{fontSize:'10px', color:'#a855f7'}}>N.E.O.N. SECURITY</p>
-                  <p style={{fontSize:'11px'}}>Chat cifrado activo. No comparta datos sensibles por fuera de la App.</p>
+                  <p style={{fontSize:'11px'}}>Chat cifrado activo. No comparta datos fuera de la App.</p>
                 </div>
-                {/* Aquí fluirán los mensajes de Supabase Realtime */}
               </div>
 
+              {/* GRILLA DE ARTÍCULOS SOCIALES */}
               <div style={styles.socialGrid}>
                 {marketItems.map(item => (
                   <div key={item.id} style={styles.socialCard}>
-                     <div style={styles.socialImg}><LayoutGrid size={20} opacity={0.1}/></div>
+                     <div style={styles.socialImg}>
+                        {/* Si tiene fotos en el array, mostramos la primera, sino el icono */}
+                        {item.fotos && item.fotos.length > 0 ? (
+                          <img src={item.fotos[0]} style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                        ) : (
+                          <LayoutGrid size={20} opacity={0.1}/>
+                        )}
+                     </div>
                      <div style={styles.socialMeta}>
-                        <b>{item.nombre}</b>
-                        <button style={styles.chatBtn}>CONSULTAR</button>
+                        <b style={{fontSize:'10px'}}>{item.nombre}</b>
+                        <button style={styles.chatBtn} onClick={() => speak(`Iniciando chat por ${item.nombre}`)}>CONSULTAR</button>
                      </div>
                   </div>
                 ))}
               </div>
             </motion.div>
           )}
+
         </AnimatePresence>
       </div>
 
