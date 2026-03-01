@@ -545,53 +545,29 @@ const App = () => {
         <button onClick={() => setPanel('right')} style={panel === 'right' ? styles.activeIcon : styles.navIcon}><LayoutGrid size={22}/></button>
       </nav>
 
-            {/* CORE N.E.O.N. (IA) */}
-      <div onClick={toggleVoice} style={styles.aiCoreBtn}>
-        <motion.div 
-          animate={isAiActive ? { scale: [1, 1.3, 1], rotate: 360 } : {}} 
-          transition={{ repeat: Infinity }} 
-          style={styles.aiOrb} 
-        />
+      {/* CORE N.E.O.N. (IA) */}
+      <div onClick={() => setIsAiActive(!isAiActive)} style={styles.aiCoreBtn}>
+        <motion.div animate={isAiActive ? { scale: [1, 1.3, 1], rotate: 360 } : {}} transition={{ repeat: Infinity }} style={styles.aiOrb} />
       </div>
 
       <AnimatePresence>
-        {/* MODAL 1: INTERFAZ DE VOZ IA */}
         {isAiActive && (
-          <motion.div 
-            key="ai-overlay"
-            initial={{opacity:0}} 
-            animate={{opacity:1}} 
-            exit={{opacity:0}} 
-            style={styles.aiOverlay}
-          >
+          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} style={styles.aiOverlay}>
              <p style={styles.aiTranscript}>{transcript || "ESCUCHANDO ORDEN NEURAL..."}</p>
              <div style={styles.aiWaveform}>
-                {[1,2,3,4,5].map(i => (
-                  <motion.div 
-                    key={i} 
-                    animate={{ height: [10, 40, 10] }} 
-                    transition={{ repeat: Infinity, delay: i*0.1 }} 
-                    style={styles.waveBar} 
-                  />
-                ))}
+                {[1,2,3,4,5].map(i => <motion.div key={i} animate={{ height: [10, 40, 10] }} transition={{ repeat: Infinity, delay: i*0.1 }} style={styles.waveBar} />)}
              </div>
           </motion.div>
         )}
 
-        {/* MODAL 2: DETALLE DE ARTÍCULO C2C (MARKETPLACE) */}
+        {/* OVERLAY DE DETALLE DE ARTÍCULO */}
         {selectedItem && (
-          <motion.div 
-            key="detail-overlay"
-            initial={{ y: '100%' }} 
-            animate={{ y: 0 }} 
-            exit={{ y: '100%' }} 
-            style={styles.detailOverlay}
-          >
+          <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} style={styles.detailOverlay}>
             <div style={styles.detailHeader}>
-              <button onClick={() => { setSelectedItem(null); setIsEditing(false); }} style={styles.backBtn}>✕</button>
+              <button onClick={() => { setSelectedItem(null); setIsEditing(false); }} style={{background:'none', border:'none', color:'#fff', fontSize:'20px'}}>✕</button>
               <h3>DETALLE DEL ARTÍCULO</h3>
               {session?.user?.id === selectedItem.vendedor_id && (
-                <button onClick={() => setIsEditing(!isEditing)} style={styles.editBtn}>
+                <button onClick={() => setIsEditing(!isEditing)} style={{background:'#a855f7', border:'none', color:'#fff', padding:'5px 15px', borderRadius:'10px'}}>
                   {isEditing ? 'GUARDAR' : 'EDITAR'}
                 </button>
               )}
@@ -603,48 +579,39 @@ const App = () => {
                   <img key={i} src={f} style={styles.galleryImg} alt="Preview" />
                 ))}
               </div>
-
               <div style={styles.detailContent}>
                 {isEditing ? (
-                  <div style={styles.editForm}>
+                  <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
                     <input defaultValue={selectedItem.nombre} style={styles.inputEdit} />
                     <input defaultValue={selectedItem.precio} style={styles.inputEdit} />
-                    <textarea defaultValue={selectedItem.descripcion || 'Sin descripción'} style={styles.textEdit} />
+                    <textarea defaultValue={selectedItem.descripcion} style={{...styles.inputEdit, height:'100px'}} />
                   </div>
                 ) : (
                   <>
                     <h2 style={styles.detailTitle}>{selectedItem.nombre}</h2>
-                    <b style={styles.detailPrice}>
-                      {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(selectedItem.precio)}
-                    </b>
-                    <p style={styles.detailDesc}>{selectedItem.descripcion || 'El vendedor no proporcionó una descripción neural.'}</p>
-                    
-                    <div style={styles.sellerInfo}>
-                      <div style={styles.avatarMini}><User size={14}/></div>
-                      <p>Vendedor: {selectedItem.vendedor_id === session?.user?.id ? 'Tú (Propietario)' : 'Usuario N.E.O.N.'}</p>
-                    </div>
+                    <b style={styles.detailPrice}>$ {new Intl.NumberFormat('es-AR').format(selectedItem.precio)}</b>
+                    <p style={styles.detailDesc}>{selectedItem.descripcion || 'Sin descripción.'}</p>
                   </>
                 )}
-
-                {selectedItem.vendedor_id !== session?.user?.id && (
-                  <div style={styles.actionGroup}>
-                    <button style={styles.chatActionBtn} onClick={() => speak(`Iniciando chat seguro por ${selectedItem.nombre}`)}>
-                      <MessageCircle size={18} /> ENVIAR MENSAJE
-                    </button>
-                    <button style={styles.buyActionBtn} onClick={() => speak("Procesando compra directa...")}>
-                      COMPRAR AHORA
-                    </button>
-                  </div>
-                )}
+                <div style={styles.actionGroup}>
+                  <button style={styles.chatActionBtn} onClick={() => speak("Iniciando chat...")}>
+                    <MessageCircle size={18} /> ENVIAR MENSAJE
+                  </button>
+                </div>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <nav style={styles.bottomNav}>
+        <button onClick={() => setPanel('left')} style={panel === 'left' ? styles.activeIcon : styles.navIcon}><Map size={22}/></button>
+        <button onClick={() => setPanel('center')} style={panel === 'center' ? styles.activeIcon : styles.navIcon}><ShoppingBag size={22}/></button>
+        <button onClick={() => setPanel('right')} style={panel === 'right' ? styles.activeIcon : styles.navIcon}><LayoutGrid size={22}/></button>
+      </nav>
     </div>
   );
 };
-
 
 
 const styles = {
