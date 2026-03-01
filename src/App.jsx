@@ -34,9 +34,45 @@ const App = () => {
   const [learningData, setLearningData] = useState([]);
   const [transcript, setTranscript] = useState("");
 
+    // 1. Iniciamos en null para saber que aún no tenemos posición
+  const [userLocation, setUserLocation] = useState(null); 
+  const [locationError, setLocationError] = useState(false);
+
+  useEffect(() => {
+    // Intentar obtener GPS real al arrancar
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          speak("Ubicación GPS confirmada. Radar sincronizado.");
+        },
+        () => {
+          setLocationError(true);
+          speak("Acceso a ubicación denegado. Por favor, indique su ciudad de operaciones.");
+        }
+      );
+    }
+  }, []);
+
+  // Función para cargar ciudad manualmente (Geocoding)
+  const setManualCity = async (city) => {
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org{city}`);
+      const data = await res.json();
+      if (data.length > 0) {
+        setUserLocation({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
+        setLocationError(false);
+        speak(`Desplegando radar sobre ${city}.`);
+      } else {
+        speak("Ciudad no encontrada en la red neural.");
+      }
+    } catch (e) {
+      speak("Error de conexión con el satélite de búsqueda.");
+    }
+  };
+
   // --- MOTOR GEOGRÁFICO Y FILTROS ---
   const [radius, setRadius] = useState(15); // 1km a 500km
-  const [userLocation, setUserLocation] = useState({ lat: -34.6037, lng: -58.3816 }); // Default Buenos Aires
   const [stores, setStores] = useState([]);
   const [filterCategory, setFilterCategory] = useState('all');
 
@@ -328,38 +364,30 @@ const App = () => {
       <div style={styles.viewport}>
         <AnimatePresence mode="wait">
           {/* PANEL IZQUIERDO: RADAR TÁCTICO GEOLOCALIZADO */}
-          {panel === 'left' && (
-            <motion.div key="left" initial={{ x: -500 }} animate={{ x: 0 }} exit={{ x: -500 }} style={styles.panelFull}>
-              <div style={styles.panelHeader}>
-                <Navigation size={18} color="#a855f7" /> <h3>RADAR TÁCTICO</h3>
-              </div>
-              <div style={styles.searchBox}><Search size={16}/><input placeholder="Filtrar por rubro o producto..." style={styles.inputInv} /></div>
+            {panel === 'left' && (
+            <motion.div key="left" initial={{ x: -300 }} animate={{ x: 0 }} style={styles.panel}>
+              <h3>RADAR TÁCTICO</h3>
               
-              <div style={styles.mapCanvas}>
-                <MapContainer 
-                  center={[userLocation.lat, userLocation.lng]} 
-                  zoom={13} 
-                  style={{height: '100%', width: '100%', borderRadius: '30px'}} 
-                  zoomControl={false}
-                >
-                  <TileLayer
-                    url="https://{s}://{z}/{x}/{y}{r}.png"
+              {!userLocation ? (
+                <div style={styles.locationFallback}>
+                  <p style={{fontSize: '12px', marginBottom: '15px', opacity: 0.7}}>
+                    {locationError ? "GPS BLOQUEADO" : "SINCRONIZANDO SATÉLITES..."}
+                  </p>
+                  <input 
+                    placeholder="Ingrese Ciudad (ej: Rosario, Madrid...)" 
+                    onKeyDown={(e) => e.key === 'Enter' && setManualCity(e.target.value)}
+                    style={styles.inputSearch}
                   />
-                  <Circle 
-                    center={[userLocation.lat, userLocation.lng]} 
-                    radius={radius * 1000} 
-                    pathOptions={{ color: '#a855f7', fillColor: '#a855f7', fillOpacity: 0.15 }} 
-                  />
-                  <Marker position={[userLocation.lat, userLocation.lng]}>
-                    <Popup>Señor, posición confirmada.</Popup>
-                  </Marker>
-                </MapContainer>
-              </div>
-
-              <div style={styles.radiusControl}>
-                <p>Radio de Alcance: {radius}km</p>
-                <input type="range" min="1" max="500" value={radius} onChange={(e) => setRadius(e.target.value)} style={styles.slider} />
-              </div>
+                  <p style={{fontSize: '10px', marginTop: '10px'}}>Presione Enter para confirmar</p>
+                </div>
+              ) : (
+                <div style={styles.mapCanvas}>
+                  <MapContainer center={[userLocation.lat, userLocation.lng]} zoom={13} style={{height: '100%'}}>
+                    <TileLayer url="https://{s}://{z}/{x}/{y}{r}.png" subdomains="abcd" />
+                    <Circle center={[userLocation.lat, userLocation.lng]} radius={radius * 1000} pathOptions={{ color: '#a855f7' }} />
+                  </MapContainer>
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -580,8 +608,10 @@ const styles = {
   chatActionBtn: { flex: 1, background: '#111', color: '#fff', border: '1px solid #333', padding: '15px', borderRadius: '12px', display: 'flex', justifyContent: 'center', gap: '10px', fontWeight: 'bold' },
   buyActionBtn: { flex: 1, background: '#a855f7', color: '#fff', border: 'none', padding: '15px', borderRadius: '12px', fontWeight: 'bold' },
   inputEdit: { background: '#111', border: '1px solid #a855f7', color: '#fff', padding: '10px', width: '100%', marginBottom: '10px', borderRadius: '10px' },
-  notificationBadge: { position: 'absolute', top: -5, right: -5, background: '#ff0055', color: '#fff', fontSize: '8px', width: '15px', height: '15px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', border: '1px solid #000',boxShadow: '0 0 10px rgba(255,0,85,0.5)'
-  
+  notificationBadge: { position: 'absolute', top: -5, right: -5, background: '#ff0055', color: '#fff', fontSize: '8px', width: '15px', height: '15px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', border: '1px solid #000',boxShadow: '0 0 10px rgba(255,0,85,0.5)';
+  locationFallback: { padding: '40px 20px', textAlign: 'center', background: '#0a0a0a', borderRadius: '30px', border: '1px solid #a855f7' },
+  inputSearch: { background: '#111', border: '1px solid #333', color: '#fff', padding: '12px', borderRadius: '15px', width: '100%', outline: 'none', textAlign: 'center' },
+
   },
 
 };
