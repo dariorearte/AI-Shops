@@ -183,7 +183,7 @@ const App = () => {
       supabase.removeChannel(alertChannel);
       supabase.removeChannel(chatChannel);
     };
-  };
+    
 
   const speak = (t) => {
     window.speechSynthesis.cancel();
