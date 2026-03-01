@@ -18,6 +18,8 @@ const App = () => {
   const [wallet, setWallet] = useState(null);
   const [hasNotifiedCategory, setHasNotifiedCategory] = useState(null); // Evita repeticiones
   const [socialItems, setSocialItems] = useState([]); // Canal exclusivo C2C
+  const [selectedItem, setSelectedItem] = useState(null); // Artículo en foco
+  const [isEditing, setIsEditing] = useState(false); // Switch de edición
 
 
   // --- INTELIGENCIA NEURAL (N.E.O.N. AI) ---
@@ -263,6 +265,64 @@ const App = () => {
     </div>
   );
 
+    {/* OVERLAY DE DETALLE DE ARTÍCULO (ESTILO MARKETPLACE PRO) */}
+  <AnimatePresence>
+    {selectedItem && (
+      <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} style={styles.detailOverlay}>
+        <div style={styles.detailHeader}>
+          <button onClick={() => { setSelectedItem(null); setIsEditing(false); }} style={styles.backBtn}>✕</button>
+          <h3>DETALLE DEL ARTÍCULO</h3>
+          {selectedItem.vendedor_id === session.user.id && (
+            <button onClick={() => setIsEditing(!isEditing)} style={styles.editBtn}>
+              {isEditing ? 'GUARDAR' : 'EDITAR'}
+            </button>
+          )}
+        </div>
+
+        <div style={styles.detailScroll}>
+          {/* Carrusel de Fotos */}
+          <div style={styles.detailGallery}>
+            {selectedItem.fotos?.map((f, i) => (
+              <img key={i} src={f} style={styles.galleryImg} alt="Preview" />
+            ))}
+          </div>
+
+          <div style={styles.detailContent}>
+            {isEditing ? (
+              <div style={styles.editForm}>
+                <input defaultValue={selectedItem.nombre} style={styles.inputEdit} />
+                <input defaultValue={selectedItem.precio} style={styles.inputEdit} />
+                <textarea defaultValue={selectedItem.descripcion || 'Sin descripción'} style={styles.textEdit} />
+              </div>
+            ) : (
+              <>
+                <h2 style={styles.detailTitle}>{selectedItem.nombre}</h2>
+                <b style={styles.detailPrice}>$ {new Intl.NumberFormat('es-AR').format(selectedItem.precio)}</b>
+                <p style={styles.detailDesc}>{selectedItem.descripcion || 'El vendedor no proporcionó una descripción neural.'}</p>
+                
+                <div style={styles.sellerInfo}>
+                  <div style={styles.avatarMini}><User size={14}/></div>
+                  <p>Vendedor: {selectedItem.vendedor_id === session.user.id ? 'Tú (Propietario)' : 'Usuario N.E.O.N.'}</p>
+                </div>
+              </>
+            )}
+
+            {selectedItem.vendedor_id !== session.user.id && (
+              <div style={styles.actionGroup}>
+                <button style={styles.chatActionBtn} onClick={() => speak("Iniciando chat seguro...")}>
+                  <MessageCircle size={18} /> ENVIAR MENSAJE
+                </button>
+                <button style={styles.buyActionBtn} onClick={() => speak("Procesando compra directa...")}>
+                  COMPRAR AHORA
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+
   return (
     <div style={styles.container}>
       {/* HEADER PREMIUM */}
@@ -342,7 +402,7 @@ const App = () => {
 
               <div style={styles.socialGrid}>
                 {socialItems.length > 0 ? socialItems.map(item => (
-                  <div key={item.id} style={styles.socialCard}>
+                  <div key={item.id} style={styles.socialCard} onClick={() => setSelectedItem(item)}>
                     <div style={styles.socialImg}>
                        {/* Mostramos la primera foto del array 'fotos' */}
                        <img src={item.fotos?.[0] || 'https://via.placeholder.com'} style={{width:'100%', height:'100%', objectFit:'cover'}} />
@@ -437,6 +497,20 @@ const styles = {
   premiumInfo: { padding: '15px' },
   priceRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' },
   addMiniBtn: { background: 'none', border: 'none', color: '#a855f7', cursor: 'pointer' },
+    detailOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#000', zIndex: 1000, display: 'flex', flexDirection: 'column' },
+  detailHeader: { padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #111' },
+  detailScroll: { flex: 1, overflowY: 'auto' },
+  detailGallery: { display: 'flex', overflowX: 'auto', gap: '2px', background: '#0a0a0a', height: '300px' },
+  galleryImg: { height: '100%', width: '100%', objectFit: 'cover', flexShrink: 0 },
+  detailContent: { padding: '25px' },
+  detailTitle: { fontSize: '22px', fontWeight: 'bold', marginBottom: '10px' },
+  detailPrice: { fontSize: '20px', color: '#a855f7', display: 'block', marginBottom: '15px' },
+  detailDesc: { fontSize: '14px', opacity: 0.7, lineHeight: '1.6', marginBottom: '20px' },
+  sellerInfo: { display: 'flex', alignItems: 'center', gap: '10px', padding: '15px', background: '#0a0a0a', borderRadius: '15px', marginBottom: '25px' },
+  actionGroup: { display: 'flex', gap: '10px' },
+  chatActionBtn: { flex: 1, background: '#111', color: '#fff', border: '1px solid #333', padding: '15px', borderRadius: '12px', display: 'flex', justifyContent: 'center', gap: '10px', fontWeight: 'bold' },
+  buyActionBtn: { flex: 1, background: '#a855f7', color: '#fff', border: 'none', padding: '15px', borderRadius: '12px', fontWeight: 'bold' },
+  inputEdit: { background: '#111', border: '1px solid #a855f7', color: '#fff', padding: '10px', width: '100%', marginBottom: '10px', borderRadius: '10px' },
 
 };
 
