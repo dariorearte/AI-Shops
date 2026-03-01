@@ -122,16 +122,27 @@ const App = () => {
     fetchGlobalMarket();
   }, []);
 
-  const fetchProfile = async (id) => {
-    const { data: p } = await supabase.from('perfiles').select('*').eq('id', id).single();
-    const { data: w } = await supabase.from('wallets').select('*').eq('id', id).single();
-    setProfile(p);
-    setWallet(w);
-    if (p?.rol) setActiveMode(p.rol);
-  };
+    const fetchProfile = async (id) => {
+    try {
+      // Usamos maybeSingle para evitar el Error 406 si no hay data inmediata
+      const { data: p, error: errorP } = await supabase.from('perfiles').select('*').eq('id', id).maybeSingle();
+      const { data: w, error: errorW } = await supabase.from('wallets').select('*').eq('id', id).maybeSingle();
+      
+      if (p) {
+        setProfile(p);
+        if (p.rol) setActiveMode(p.rol);
+      }
+      
+      if (w) {
+        setWallet(w);
+      } else {
+        console.warn("N.E.O.N. advierte: Wallet no detectada para este usuario.");
+      }
 
-    const initializeRealtime = (userId) => {
-    if (!userId) return;
+    } catch (err) {
+      console.error("Fallo de enlace en fetchProfile:", err);
+    }
+  };
 
     // CANAL ALFA: NOTIFICACIONES PERSONALES
     const alertChannel = supabase.channel(`notificaciones-${userId}`)
@@ -370,9 +381,7 @@ const App = () => {
           <h1 style={styles.logoText}>N.E.O.N.</h1>
           <p style={{fontSize: '8px', opacity: 0.5}}>RADIO: {radius}KM | {profile?.rango || 'BRONCE'}</p>
         </div>
-        <div style={styles.avatarCircle}><User size={18} />
-            <User 
-            size={20} 
+        <div style={styles.avatarCircle}><User size={25} 
             onClick={handleLogin} // <--- ESTO ES LO QUE ACTIVA LA FUNCIÓN
             style={{ cursor: 'pointer', color: '#a855f7' }} 
           />
@@ -542,67 +551,67 @@ const App = () => {
           </motion.div>
         )}
         {/* OVERLAY DE DETALLE DE ARTÍCULO (ESTILO MARKETPLACE PRO) */}
-  <AnimatePresence>
-    {selectedItem && (
-      <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} style={styles.detailOverlay}>
-        <div style={styles.detailHeader}>
-          <button onClick={() => { setSelectedItem(null); setIsEditing(false); }} style={styles.backBtn}>✕</button>
-          <h3>DETALLE DEL ARTÍCULO</h3>
-          {selectedItem.vendedor_id === session.user.id && (
-            <button onClick={() => setIsEditing(!isEditing)} style={styles.editBtn}>
-              {isEditing ? 'GUARDAR' : 'EDITAR'}
-            </button>
-          )}
-        </div>
-
-        <div style={styles.detailScroll}>
-          {/* Carrusel de Fotos */}
-          <div style={styles.detailGallery}>
-            {selectedItem.fotos?.map((f, i) => (
-              <img key={i} src={f} style={styles.galleryImg} alt="Preview" />
-            ))}
-          </div>
-
-          <div style={styles.detailContent}>
-            {isEditing ? (
-              <div style={styles.editForm}>
-                <input defaultValue={selectedItem.nombre} style={styles.inputEdit} />
-                <input defaultValue={selectedItem.precio} style={styles.inputEdit} />
-                <textarea defaultValue={selectedItem.descripcion || 'Sin descripción'} style={styles.textEdit} />
+        <AnimatePresence>
+          {selectedItem && (
+            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} style={styles.detailOverlay}>
+              <div style={styles.detailHeader}>
+                <button onClick={() => { setSelectedItem(null); setIsEditing(false); }} style={styles.backBtn}>✕</button>
+                <h3>DETALLE DEL ARTÍCULO</h3>
+                {selectedItem.vendedor_id === session.user.id && (
+                  <button onClick={() => setIsEditing(!isEditing)} style={styles.editBtn}>
+                    {isEditing ? 'GUARDAR' : 'EDITAR'}
+                  </button>
+                )}
               </div>
-            ) : (
-              <>
-                <h2 style={styles.detailTitle}>{selectedItem.nombre}</h2>
-                <b style={styles.detailPrice}>{new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(selectedItem.precio)}</b>
-                <b style={styles.detailPrice}>$ {new Intl.NumberFormat('es-AR').format(selectedItem.precio)}</b>
-                <p style={styles.detailDesc}>{selectedItem.descripcion || 'El vendedor no proporcionó una descripción neural.'}</p>
-                
-                <div style={styles.sellerInfo}>
-                  <div style={styles.avatarMini}><User size={14}/></div>
-                  <p>Vendedor: {selectedItem.vendedor_id === session.user.id ? 'Tú (Propietario)' : 'Usuario N.E.O.N.'}</p>
+
+              <div style={styles.detailScroll}>
+                {/* Carrusel de Fotos */}
+                <div style={styles.detailGallery}>
+                  {selectedItem.fotos?.map((f, i) => (
+                    <img key={i} src={f} style={styles.galleryImg} alt="Preview" />
+                  ))}
                 </div>
-              </>
-            )}
 
-            {selectedItem.vendedor_id !== session.user.id && (
-              <div style={styles.actionGroup}>
-                <button style={styles.chatActionBtn} onClick={() => speak("Iniciando chat seguro...")}>
-                  <MessageCircle size={18} /> ENVIAR MENSAJE
-                </button>
-                <button style={styles.buyActionBtn} onClick={() => speak("Procesando compra directa...")}>
-                  COMPRAR AHORA
-                </button>
+                <div style={styles.detailContent}>
+                  {isEditing ? (
+                    <div style={styles.editForm}>
+                      <input defaultValue={selectedItem.nombre} style={styles.inputEdit} />
+                      <input defaultValue={selectedItem.precio} style={styles.inputEdit} />
+                      <textarea defaultValue={selectedItem.descripcion || 'Sin descripción'} style={styles.textEdit} />
+                    </div>
+                  ) : (
+                    <>
+                      <h2 style={styles.detailTitle}>{selectedItem.nombre}</h2>
+                      <b style={styles.detailPrice}>{new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(selectedItem.precio)}</b>
+                      <b style={styles.detailPrice}>$ {new Intl.NumberFormat('es-AR').format(selectedItem.precio)}</b>
+                      <p style={styles.detailDesc}>{selectedItem.descripcion || 'El vendedor no proporcionó una descripción neural.'}</p>
+                      
+                      <div style={styles.sellerInfo}>
+                        <div style={styles.avatarMini}><User size={14}/></div>
+                        <p>Vendedor: {selectedItem.vendedor_id === session.user.id ? 'Tú (Propietario)' : 'Usuario N.E.O.N.'}</p>
+                      </div>
+                    </>
+                  )}
+
+                  {selectedItem.vendedor_id !== session.user.id && (
+                    <div style={styles.actionGroup}>
+                      <button style={styles.chatActionBtn} onClick={() => speak("Iniciando chat seguro...")}>
+                        <MessageCircle size={18} /> ENVIAR MENSAJE
+                      </button>
+                      <button style={styles.buyActionBtn} onClick={() => speak("Procesando compra directa...")}>
+                        COMPRAR AHORA
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
-        </div>
-      </motion.div>
-    )}
-  </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </AnimatePresence>
     </div>
   );
-};
+
 
 const styles = {
   container: { background: '#000', minHeight: '100vh', color: '#fff', fontFamily: 'Inter, sans-serif', overflow: 'hidden' },
