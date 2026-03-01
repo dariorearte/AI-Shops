@@ -110,6 +110,43 @@ const App = () => {
     const { data } = await supabase.from('productos').select('*').limit(20);
     setMarketItems(data || []);
   };
+
+    // --- MOTOR DE INDUCCIÓN NEURAL (N.E.O.N. BRAIN) ---
+  const [neuralScore, setNeuralScore] = useState(0);
+  const [lastActions, setLastActions] = useState([]);
+
+  const trackAction = (actionType, metadata) => {
+    const newAction = { type: actionType, meta: metadata, timestamp: Date.now() };
+    const updatedActions = [newAction, ...lastActions].slice(0, 50);
+    setLastActions(updatedActions);
+    
+    const categoryCounts = updatedActions.reduce((acc, act) => {
+      if (act.type === 'view_product') acc[act.meta.category] = (acc[act.meta.category] || 0) + 1;
+      return acc;
+    }, {});
+
+    Object.keys(categoryCounts).forEach(cat => {
+      if (categoryCounts[cat] >= 3) {
+        speak(`Señor, he detectado un interés recurrente en ${cat}. He optimizado el radar para mostrarle ofertas exclusivas.`);
+        setFilterCategory(cat);
+      }
+    });
+  };
+
+  const processEscrowPayment = async (orderId, amount) => {
+    if (!wallet || wallet.saldo_disponible < amount) return speak("Saldo insuficiente, señor.");
+    speak(`Iniciando protocolo de Fideicomiso N.E.O.N. por ${amount} créditos.`);
+    const { error } = await supabase.from('wallets').update({
+      saldo_disponible: wallet.saldo_disponible - amount,
+      saldo_retenido: wallet.saldo_retenido + amount
+    }).eq('id', session.user.id);
+    if (!error) {
+      await supabase.from('pedidos').update({ estado: 'pago_retenido' }).eq('id', orderId);
+      speak("Fondos asegurados.");
+    }
+  };
+
+
   if (!session) return (
     <div style={styles.loginPage}>
       <motion.div animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }} transition={{ repeat: Infinity, duration: 5 }} style={styles.neonLogoLarge}>N.E.O.N.</motion.div>
@@ -155,31 +192,37 @@ const App = () => {
           )}
 
           {/* PANEL CENTRAL: PRIME FEED (MARKETPLACE DE TIENDAS) */}
-          {panel === 'center' && (
-            <motion.div key="center" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={styles.panelFull}>
-              <div style={styles.storiesRow}>
-                {[1,2,3,4,5].map(i => <div key={i} style={styles.storyCircle}><Zap size={14} color="#a855f7"/></div>)}
+                    {panel === 'center' && (
+            <motion.div key="center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={styles.panelFull}>
+              <section style={styles.aiRecommendation}>
+                <Zap size={14} color="#fff" />
+                <p>RECOMENDACIÓN DE {aiPersonality.toUpperCase()}: "Neon Burger tiene un 20% off ahora"</p>
+              </section>
+
+              <div style={styles.categoryScroller}>
+                {['Sushis', 'Pizzas', 'Tech', 'Ropa', 'Farmacia'].map(cat => (
+                  <button key={cat} onClick={() => setFilterCategory(cat.toLowerCase())} style={styles.categoryBtn}>{cat}</button>
+                ))}
               </div>
-              <div style={styles.promoCard}>
-                 <div style={styles.promoContent}>
-                    <h4>OFERTA NEURAL</h4>
-                    <p>Basado en tus gustos de hoy...</p>
-                 </div>
-                 <ArrowRight size={20} />
-              </div>
+
               <div style={styles.feedGrid}>
                 {marketItems.map(item => (
-                  <div key={item.id} style={styles.productCard}>
+                  <div key={item.id} style={styles.premiumCard} onClick={() => trackAction('view_product', { category: item.categoria })}>
+                    <div style={styles.productBadge}>DESTACADO</div>
                     <div style={styles.productImg}><ShoppingBag size={24} opacity={0.1}/></div>
-                    <div style={styles.productInfo}>
+                    <div style={styles.premiumInfo}>
                       <b>{item.nombre}</b>
-                      <span style={{color: '#a855f7'}}>${item.precio}</span>
+                      <div style={styles.priceRow}>
+                        <span>${item.precio}</span>
+                        <button style={styles.addMiniBtn}><PlusCircle size={16} /></button>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             </motion.div>
           )}
+
 
           {/* PANEL DERECHO: NEURAL MARKETPLACE (C2C SOCIAL) */}
           {panel === 'right' && (
@@ -268,7 +311,16 @@ const styles = {
   aiOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.95)', zIndex: 1000, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' },
   aiTranscript: { color: '#a855f7', fontSize: '20px', letterSpacing: '4px', textAlign: 'center', maxWidth: '80%' },
   aiWaveform: { display: 'flex', gap: '5px', marginTop: '30px', alignItems: 'center' },
-  waveBar: { width: '4px', background: '#a855f7', borderRadius: '2px' }
+  waveBar: { width: '4px', background: '#a855f7', borderRadius: '2px' },
+    aiRecommendation: { background: 'linear-gradient(90deg, #a855f7, #6366f1)', padding: '12px 20px', borderRadius: '18px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11px', marginBottom: '20px', fontWeight: 'bold' },
+  categoryScroller: { display: 'flex', gap: '10px', overflowX: 'auto', marginBottom: '20px', paddingBottom: '10px' },
+  categoryBtn: { background: '#0a0a0a', border: '1px solid #1a1a1a', color: '#fff', padding: '10px 20px', borderRadius: '25px', fontSize: '11px', cursor: 'pointer', whiteSpace: 'nowrap' },
+  premiumCard: { background: 'rgba(255,255,255,0.02)', borderRadius: '25px', border: '1px solid #111', overflow: 'hidden', position: 'relative', marginBottom: '15px' },
+  productBadge: { position: 'absolute', top: '12px', left: '12px', background: '#a855f7', fontSize: '8px', padding: '4px 10px', borderRadius: '12px', fontWeight: '900', zIndex: 2 },
+  premiumInfo: { padding: '15px' },
+  priceRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' },
+  addMiniBtn: { background: 'none', border: 'none', color: '#a855f7', cursor: 'pointer' },
+
 };
 
 export default App;
