@@ -1,13 +1,17 @@
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Map, ShoppingBag, LayoutGrid, User, Settings, Mic, Search, 
-  Bell, Heart, MessageCircle, PlusCircle, Navigation, 
-  CreditCard, ShieldCheck, Zap, Star, Filter, ArrowRight 
-} from 'lucide-react';
+import { Map, ShoppingBag, LayoutGrid, User, Settings, Mic, Search, Bell, Heart, MessageCircle, PlusCircle, Navigation, CreditCard, ShieldCheck, Zap, Star, Filter, ArrowRight } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix para los iconos de Leaflet (Si no, los pins no se verán)
+import L from 'leaflet';
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+let DefaultIcon = L.icon({ iconUrl: icon, shadowUrl: iconShadow, iconSize: [25, 41], iconAnchor: [12, 41] });
+L.Marker.prototype.options.icon = DefaultIcon;
+
 
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
@@ -332,28 +336,26 @@ const App = () => {
               <div style={styles.searchBox}><Search size={16}/><input placeholder="Filtrar por rubro o producto..." style={styles.inputInv} /></div>
               
               <div style={styles.mapCanvas}>
-                <MapContainer center={[userLocation.lat, userLocation.lng]} zoom={13} style={{height: '100%', width: '100%'}} zoomControl={false}>
+                <MapContainer 
+                  center={[userLocation.lat, userLocation.lng]} 
+                  zoom={13} 
+                  style={{height: '100%', width: '100%', borderRadius: '30px'}} 
+                  zoomControl={false}
+                >
                   <TileLayer
                     url="https://{s}://{z}/{x}/{y}{r}.png"
-                    attribution='&copy; OpenStreetMap'
                   />
                   <Circle 
                     center={[userLocation.lat, userLocation.lng]} 
                     radius={radius * 1000} 
-                    pathOptions={{ color: '#a855f7', fillColor: '#a855f7', fillOpacity: 0.1 }} 
+                    pathOptions={{ color: '#a855f7', fillColor: '#a855f7', fillOpacity: 0.15 }} 
                   />
                   <Marker position={[userLocation.lat, userLocation.lng]}>
-                    <Popup>Señor, usted está aquí. <br/> Radio de inducción: {radius}km.</Popup>
+                    <Popup>Señor, posición confirmada.</Popup>
                   </Marker>
-                  {/* Pins de Tiendas Reales */}
-                  {stores.map(store => (
-                    <Marker key={store.id} position={[store.ubicacion.lat, store.ubicacion.lng]}>
-                      <Popup>{store.nombre}</Popup>
-                    </Marker>
-                  ))}
                 </MapContainer>
               </div>
-              
+
               <div style={styles.radiusControl}>
                 <p>Radio de Alcance: {radius}km</p>
                 <input type="range" min="1" max="500" value={radius} onChange={(e) => setRadius(e.target.value)} style={styles.slider} />
