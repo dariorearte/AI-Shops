@@ -41,21 +41,27 @@ const App = () => {
   const [stores, setStores] = useState([]);
   const [filterCategory, setFilterCategory] = useState('all');
 
-  // Función de Búsqueda Manual (Corregida)
-  const setManualCity = async (city) => {
+  // Función de Búsqueda Manual (Corregida)  
+    const setManualCity = async (city) => {
     if (!city) return;
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org{encodeURIComponent(city)}`);
+      // COORDINADA EXACTA: Faltaba '/search?format=json&q='
+      const url = `https://nominatim.openstreetmap.org{encodeURIComponent(city)}`;
+      
+      const res = await fetch(url);
       const data = await res.json();
+      
       if (data && data.length > 0) {
-        setUserLocation({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
+        const { lat, lon } = data[0];
+        setUserLocation({ lat: parseFloat(lat), lng: parseFloat(lon) });
         setLocationError(false);
-        speak(`Radar desplegado sobre ${city}, señor.`);
+        speak(`Señor, radar desplegado con éxito sobre ${city}.`);
       } else {
-        speak("Coordenadas no encontradas en la red.");
+        speak("Coordenadas no encontradas en la red neural.");
       }
     } catch (e) {
-      speak("Fallo en el satélite de búsqueda.");
+      console.error("Geocoding Error:", e);
+      speak("Fallo en el satélite de búsqueda. Verifique su conexión.");
     }
   };
 
@@ -80,7 +86,7 @@ const App = () => {
   useEffect(() => {
     getGPS();
   }, []);
-  
+
 
   // --- MARKETPLACE Y TRANSACCIONES ---
   const [marketItems, setMarketItems] = useState([]);
@@ -380,10 +386,17 @@ const App = () => {
                     {locationError ? "GPS BLOQUEADO" : "SINCRONIZANDO SATÉLITES..."}
                   </p>
                   <input 
-                    placeholder="Ingrese Ciudad (ej: Rosario, Madrid...)" 
-                    onKeyDown={(e) => e.key === 'Enter' && setManualCity(e.target.value)}
+                    type="text"
+                    placeholder="Ingrese ciudad (ej: Rosario, Argentina)" 
                     style={styles.inputSearch}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        setManualCity(e.target.value);
+                        e.target.value = ""; // Limpiamos para la próxima orden
+                      }
+                    }}
                   />
+
                   <p style={{fontSize: '10px', marginTop: '10px'}}>Presione Enter para confirmar</p>
                 </div>
               ) : (
