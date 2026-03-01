@@ -17,16 +17,15 @@ const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env
 
 const App = () => {
   // --- NAVEGACIÓN Y PERFILES ---
-  const [panel, setPanel] = useState('center'); // left, center, right
+  const [panel, setPanel] = useState('center'); 
   const [session, setSession] = useState(null);
-  const [activeMode, setActiveMode] = useState('shopper'); // shopper, shop, ryder
+  const [activeMode, setActiveMode] = useState('shopper'); 
   const [profile, setProfile] = useState(null);
   const [wallet, setWallet] = useState(null);
-  const [hasNotifiedCategory, setHasNotifiedCategory] = useState(null); // Evita repeticiones
-  const [socialItems, setSocialItems] = useState([]); // Canal exclusivo C2C
-  const [selectedItem, setSelectedItem] = useState(null); // Artículo en foco
-  const [isEditing, setIsEditing] = useState(false); // Switch de edición
-
+  const [hasNotifiedCategory, setHasNotifiedCategory] = useState(null); 
+  const [socialItems, setSocialItems] = useState([]); 
+  const [selectedItem, setSelectedItem] = useState(null); 
+  const [isEditing, setIsEditing] = useState(false); 
 
   // --- INTELIGENCIA NEURAL (N.E.O.N. AI) ---
   const [isAiActive, setIsAiActive] = useState(false);
@@ -34,21 +33,19 @@ const App = () => {
   const [learningData, setLearningData] = useState([]);
   const [transcript, setTranscript] = useState("");
 
-          // --- NUCLEO DE INTELIGENCIA GEOGRÁFICA (SANEADO) ---
+  // --- NUCLEO DE INTELIGENCIA GEOGRÁFICA (SANEADO) ---
   const [userLocation, setUserLocation] = useState(null);
   const [locationError, setLocationError] = useState(false);
   const [radius, setRadius] = useState(15);
   const [stores, setStores] = useState([]);
   const [filterCategory, setFilterCategory] = useState('all');
 
-    // --- PUENTE DE AUTENTICACIÓN GOOGLE ---
+  // --- PUENTE DE AUTENTICACIÓN GOOGLE ---
   const handleLogin = async () => {
     speak("Iniciando protocolo de identificación con Google...");
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        // Esto asegura que Google sepa a dónde volver tras el login
-        redirectTo: window.location.origin 
+      options: {redirectTo: window.location.origin
       }
     });
     if (error) {
@@ -57,27 +54,32 @@ const App = () => {
     }
   };
 
-  // Función de Búsqueda Manual (Corregida)  
-    const setManualCity = async (city) => {
+  // --- FUNCIÓN DE BÚSQUEDA MANUAL (REPARACIÓN OMEGA) ---  
+  const setManualCity = async (city) => {
     if (!city) return;
     try {
-      // URL CORREGIDA: Sin llaves, con parámetros reales de Nominatim
+      // URL CORREGIDA: Estructura real de Nominatim API
       const url = `https://nominatim.openstreetmap.org{encodeURIComponent(city)}`;
-      const res = await fetch(`https://nominatim.openstreetmap.org{encodeURIComponent(city)}`);
+      const res = await fetch(url);
       const data = await res.json();
       
       if (data && data.length > 0) {
-        setUserLocation({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
+        // Nominatim devuelve un array, tomamos el primer resultado [0]
+        setUserLocation({ 
+          lat: parseFloat(data[0].lat), 
+          lng: parseFloat(data[0].lon) 
+        });
         setLocationError(false);
         speak(`Radar desplegado sobre ${city}, señor.`);
       } else {
         speak("Coordenadas no encontradas en la red neural.");
       }
     } catch (e) {
+      console.error("Fallo en Geocoding:", e);
       speak("Fallo en el satélite de búsqueda.");
     }
   };
-  
+
   
   const getGPS = () => {
   if ("geolocation" in navigator) {
@@ -101,7 +103,7 @@ const App = () => {
   }, []);
 
 
-  // --- MARKETPLACE Y TRANSACCIONES ---
+      // --- MARKETPLACE Y TRANSACCIONES ---
   const [marketItems, setMarketItems] = useState([]);
   const [cart, setCart] = useState([]);
   const [isPosting, setIsPosting] = useState(false);
@@ -110,21 +112,28 @@ const App = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-
+  // --- EFECTO DE ARRANQUE NEURAL ---
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const initializeSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
+      
       if (session) {
+        // COORDINACIÓN: Pasamos el ID a ambas funciones para evitar errores de referencia
         fetchProfile(session.user.id);
-        initializeRealtime();
+        initializeRealtime(session.user.id); 
       }
-    });
+    };
+
+    initializeSession();
     fetchGlobalMarket();
   }, []);
 
-    const fetchProfile = async (id) => {
+  // --- OBTENCIÓN DE PERFIL (BLINDADO) ---
+  const fetchProfile = async (id) => {
+    if (!id) return;
     try {
-      // Usamos maybeSingle para evitar el Error 406 si no hay data inmediata
+      // maybeSingle evita que la App explote si el usuario es nuevo
       const { data: p, error: errorP } = await supabase.from('perfiles').select('*').eq('id', id).maybeSingle();
       const { data: w, error: errorW } = await supabase.from('wallets').select('*').eq('id', id).maybeSingle();
       
@@ -136,7 +145,7 @@ const App = () => {
       if (w) {
         setWallet(w);
       } else {
-        console.warn("N.E.O.N. advierte: Wallet no detectada para este usuario.");
+        console.warn("N.E.O.N. advierte: Generando balance inicial...");
       }
 
     } catch (err) {
@@ -459,7 +468,7 @@ const App = () => {
 
 
           {/* PANEL CENTRAL: PRIME FEED (MARKETPLACE DE TIENDAS) */}
-                    {panel === 'center' && (
+          {panel === 'center' && (
             <motion.div key="center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={styles.panelFull}>
               <section style={styles.aiRecommendation}>
                 <Zap size={14} color="#fff" />
@@ -492,7 +501,7 @@ const App = () => {
 
 
           {/* PANEL DERECHO: NEURAL MARKETPLACE (C2C SOCIAL) */}
-                      {panel === 'right' && (
+          {panel === 'right' && (
             <motion.div key="right" initial={{ x: 300 }} animate={{ x: 0 }} exit={{ x: 300 }} style={styles.panelFull}>
               <div style={styles.marketHeader}>
                 <h3>NEURAL MARKETPLACE</h3>
@@ -536,81 +545,106 @@ const App = () => {
         <button onClick={() => setPanel('right')} style={panel === 'right' ? styles.activeIcon : styles.navIcon}><LayoutGrid size={22}/></button>
       </nav>
 
-      {/* CORE N.E.O.N. (IA) */}
+            {/* CORE N.E.O.N. (IA) */}
       <div onClick={toggleVoice} style={styles.aiCoreBtn}>
-        <motion.div animate={isAiActive ? { scale: [1, 1.3, 1], rotate: 360 } : {}} transition={{ repeat: Infinity }} style={styles.aiOrb} />
+        <motion.div 
+          animate={isAiActive ? { scale: [1, 1.3, 1], rotate: 360 } : {}} 
+          transition={{ repeat: Infinity }} 
+          style={styles.aiOrb} 
+        />
       </div>
 
       <AnimatePresence>
+        {/* MODAL 1: INTERFAZ DE VOZ IA */}
         {isAiActive && (
-          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} style={styles.aiOverlay}>
+          <motion.div 
+            key="ai-overlay"
+            initial={{opacity:0}} 
+            animate={{opacity:1}} 
+            exit={{opacity:0}} 
+            style={styles.aiOverlay}
+          >
              <p style={styles.aiTranscript}>{transcript || "ESCUCHANDO ORDEN NEURAL..."}</p>
              <div style={styles.aiWaveform}>
-                {[1,2,3,4,5].map(i => <motion.div key={i} animate={{ height: [10, 40, 10] }} transition={{ repeat: Infinity, delay: i*0.1 }} style={styles.waveBar} />)}
+                {[1,2,3,4,5].map(i => (
+                  <motion.div 
+                    key={i} 
+                    animate={{ height: [10, 40, 10] }} 
+                    transition={{ repeat: Infinity, delay: i*0.1 }} 
+                    style={styles.waveBar} 
+                  />
+                ))}
              </div>
           </motion.div>
         )}
-        {/* OVERLAY DE DETALLE DE ARTÍCULO (ESTILO MARKETPLACE PRO) */}
-        <AnimatePresence>
-          {selectedItem && (
-            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} style={styles.detailOverlay}>
-              <div style={styles.detailHeader}>
-                <button onClick={() => { setSelectedItem(null); setIsEditing(false); }} style={styles.backBtn}>✕</button>
-                <h3>DETALLE DEL ARTÍCULO</h3>
-                {selectedItem.vendedor_id === session.user.id && (
-                  <button onClick={() => setIsEditing(!isEditing)} style={styles.editBtn}>
-                    {isEditing ? 'GUARDAR' : 'EDITAR'}
-                  </button>
+
+        {/* MODAL 2: DETALLE DE ARTÍCULO C2C (MARKETPLACE) */}
+        {selectedItem && (
+          <motion.div 
+            key="detail-overlay"
+            initial={{ y: '100%' }} 
+            animate={{ y: 0 }} 
+            exit={{ y: '100%' }} 
+            style={styles.detailOverlay}
+          >
+            <div style={styles.detailHeader}>
+              <button onClick={() => { setSelectedItem(null); setIsEditing(false); }} style={styles.backBtn}>✕</button>
+              <h3>DETALLE DEL ARTÍCULO</h3>
+              {session?.user?.id === selectedItem.vendedor_id && (
+                <button onClick={() => setIsEditing(!isEditing)} style={styles.editBtn}>
+                  {isEditing ? 'GUARDAR' : 'EDITAR'}
+                </button>
+              )}
+            </div>
+
+            <div style={styles.detailScroll}>
+              <div style={styles.detailGallery}>
+                {selectedItem.fotos?.map((f, i) => (
+                  <img key={i} src={f} style={styles.galleryImg} alt="Preview" />
+                ))}
+              </div>
+
+              <div style={styles.detailContent}>
+                {isEditing ? (
+                  <div style={styles.editForm}>
+                    <input defaultValue={selectedItem.nombre} style={styles.inputEdit} />
+                    <input defaultValue={selectedItem.precio} style={styles.inputEdit} />
+                    <textarea defaultValue={selectedItem.descripcion || 'Sin descripción'} style={styles.textEdit} />
+                  </div>
+                ) : (
+                  <>
+                    <h2 style={styles.detailTitle}>{selectedItem.nombre}</h2>
+                    <b style={styles.detailPrice}>
+                      {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(selectedItem.precio)}
+                    </b>
+                    <p style={styles.detailDesc}>{selectedItem.descripcion || 'El vendedor no proporcionó una descripción neural.'}</p>
+                    
+                    <div style={styles.sellerInfo}>
+                      <div style={styles.avatarMini}><User size={14}/></div>
+                      <p>Vendedor: {selectedItem.vendedor_id === session?.user?.id ? 'Tú (Propietario)' : 'Usuario N.E.O.N.'}</p>
+                    </div>
+                  </>
+                )}
+
+                {selectedItem.vendedor_id !== session?.user?.id && (
+                  <div style={styles.actionGroup}>
+                    <button style={styles.chatActionBtn} onClick={() => speak(`Iniciando chat seguro por ${selectedItem.nombre}`)}>
+                      <MessageCircle size={18} /> ENVIAR MENSAJE
+                    </button>
+                    <button style={styles.buyActionBtn} onClick={() => speak("Procesando compra directa...")}>
+                      COMPRAR AHORA
+                    </button>
+                  </div>
                 )}
               </div>
-
-              <div style={styles.detailScroll}>
-                {/* Carrusel de Fotos */}
-                <div style={styles.detailGallery}>
-                  {selectedItem.fotos?.map((f, i) => (
-                    <img key={i} src={f} style={styles.galleryImg} alt="Preview" />
-                  ))}
-                </div>
-
-                <div style={styles.detailContent}>
-                  {isEditing ? (
-                    <div style={styles.editForm}>
-                      <input defaultValue={selectedItem.nombre} style={styles.inputEdit} />
-                      <input defaultValue={selectedItem.precio} style={styles.inputEdit} />
-                      <textarea defaultValue={selectedItem.descripcion || 'Sin descripción'} style={styles.textEdit} />
-                    </div>
-                  ) : (
-                    <>
-                      <h2 style={styles.detailTitle}>{selectedItem.nombre}</h2>
-                      <b style={styles.detailPrice}>{new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(selectedItem.precio)}</b>
-                      <b style={styles.detailPrice}>$ {new Intl.NumberFormat('es-AR').format(selectedItem.precio)}</b>
-                      <p style={styles.detailDesc}>{selectedItem.descripcion || 'El vendedor no proporcionó una descripción neural.'}</p>
-                      
-                      <div style={styles.sellerInfo}>
-                        <div style={styles.avatarMini}><User size={14}/></div>
-                        <p>Vendedor: {selectedItem.vendedor_id === session.user.id ? 'Tú (Propietario)' : 'Usuario N.E.O.N.'}</p>
-                      </div>
-                    </>
-                  )}
-
-                  {selectedItem.vendedor_id !== session.user.id && (
-                    <div style={styles.actionGroup}>
-                      <button style={styles.chatActionBtn} onClick={() => speak("Iniciando chat seguro...")}>
-                        <MessageCircle size={18} /> ENVIAR MENSAJE
-                      </button>
-                      <button style={styles.buyActionBtn} onClick={() => speak("Procesando compra directa...")}>
-                        COMPRAR AHORA
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
+};
+
 
 
 const styles = {
@@ -678,7 +712,7 @@ const styles = {
   notificationBadge: { position: 'absolute', top: -5, right: -5, background: '#ff0055', color: '#fff', fontSize: '8px', width: '15px', height: '15px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', border: '1px solid #000',boxShadow: '0 0 10px rgba(255,0,85,0.5)',
   locationFallback: { padding: '40px 20px', textAlign: 'center', background: '#0a0a0a', borderRadius: '30px', border: '1px solid #a855f7' },
   inputSearch: { background: '#111', border: '1px solid #333', color: '#fff', padding: '12px', borderRadius: '15px', width: '100%', outline: 'none', textAlign: 'center' },
-
+  
   },
 
 };
