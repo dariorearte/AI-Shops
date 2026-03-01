@@ -39,6 +39,11 @@ const App = () => {
   const [cart, setCart] = useState([]);
   const [isPosting, setIsPosting] = useState(false);
 
+  // --- SISTEMA DE ALERTAS NEURALES ---
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -58,11 +63,35 @@ const App = () => {
     if (p?.rol) setActiveMode(p.rol);
   };
 
-  const initializeRealtime = () => {
-    supabase.channel('pedidos-updates')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pedidos' }, payload => {
-        speak("Señor, el estado de su orden ha sido actualizado en la red.");
-      }).subscribe();
+    const initializeRealtime = (userId) => {
+    if (!userId) return;
+
+    // CANAL ALFA: NOTIFICACIONES PERSONALES
+    const alertChannel = supabase.channel(`notificaciones-${userId}`)
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'notificaciones_neon', filter: `usuario_id=eq.${userId}` }, 
+        (payload) => {
+          setNotifications(prev => [payload.new, ...prev]);
+          setUnreadCount(prev => prev + 1);
+          speak(`Señor, nueva notificación de ${payload.new.tipo || 'sistema'}.`);
+        }
+      ).subscribe();
+
+    // CANAL BETA: CHATS DEL MARKETPLACE
+    const chatChannel = supabase.channel('marketplace-chats')
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'mensajes_c2c' }, 
+        (payload) => {
+          if (payload.new.remitente_id !== userId) {
+            speak("Mensaje entrante en el Marketplace.");
+          }
+        }
+      ).subscribe();
+
+    return () => {
+      supabase.removeChannel(alertChannel);
+      supabase.removeChannel(chatChannel);
+    };
   };
 
   const speak = (t) => {
@@ -271,10 +300,22 @@ const App = () => {
       <header style={styles.header}>
         <Settings size={20} onClick={() => speak("Configuraciones de N.E.O.N. listas.")} style={{cursor:'pointer'}}/>
         <div style={{textAlign: 'center'}}>
-          <h1 style={styles.logoText}>N.E.O.N. <span style={{color: '#fff', fontSize: '10px'}}>OMEGA</span></h1>
+          <h1 style={styles.logoText}>N.E.O.N.</h1>
           <p style={{fontSize: '8px', opacity: 0.5}}>RADIO: {radius}KM | {profile?.rango || 'BRONCE'}</p>
         </div>
         <div style={styles.avatarCircle}><User size={18} /></div>
+        <div style={{position: 'relative', cursor: 'pointer'}} onClick={() => { setUnreadCount(0); speak("Centro de notificaciones sincronizado."); }}>
+            <Bell size={20} color={unreadCount > 0 ? '#a855f7' : '#fff'} />
+            {unreadCount > 0 && (
+            <motion.div 
+            initial={{ scale: 0 }} 
+            animate={{ scale: 1 }} 
+            style={styles.notificationBadge}
+            >
+            {unreadCount}
+          </motion.div>
+          )}
+        </div>
       </header>
 
       {/* VIEWPORT DE TRIPLE PANEL */}
@@ -496,7 +537,7 @@ const styles = {
   aiTranscript: { color: '#a855f7', fontSize: '20px', letterSpacing: '4px', textAlign: 'center', maxWidth: '80%' },
   aiWaveform: { display: 'flex', gap: '5px', marginTop: '30px', alignItems: 'center' },
   waveBar: { width: '4px', background: '#a855f7', borderRadius: '2px' },
-    aiRecommendation: { background: 'linear-gradient(90deg, #a855f7, #6366f1)', padding: '12px 20px', borderRadius: '18px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11px', marginBottom: '20px', fontWeight: 'bold' },
+  aiRecommendation: { background: 'linear-gradient(90deg, #a855f7, #6366f1)', padding: '12px 20px', borderRadius: '18px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '11px', marginBottom: '20px', fontWeight: 'bold' },
   categoryScroller: { display: 'flex', gap: '10px', overflowX: 'auto', marginBottom: '20px', paddingBottom: '10px' },
   categoryBtn: { background: '#0a0a0a', border: '1px solid #1a1a1a', color: '#fff', padding: '10px 20px', borderRadius: '25px', fontSize: '11px', cursor: 'pointer', whiteSpace: 'nowrap' },
   premiumCard: { background: 'rgba(255,255,255,0.02)', borderRadius: '25px', border: '1px solid #111', overflow: 'hidden', position: 'relative', marginBottom: '15px' },
@@ -504,7 +545,7 @@ const styles = {
   premiumInfo: { padding: '15px' },
   priceRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' },
   addMiniBtn: { background: 'none', border: 'none', color: '#a855f7', cursor: 'pointer' },
-    detailOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#000', zIndex: 1000, display: 'flex', flexDirection: 'column' },
+  detailOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#000', zIndex: 1000, display: 'flex', flexDirection: 'column' },
   detailHeader: { padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #111' },
   detailScroll: { flex: 1, overflowY: 'auto' },
   detailGallery: { display: 'flex', overflowX: 'auto', gap: '2px', background: '#0a0a0a', height: '300px' },
@@ -518,6 +559,9 @@ const styles = {
   chatActionBtn: { flex: 1, background: '#111', color: '#fff', border: '1px solid #333', padding: '15px', borderRadius: '12px', display: 'flex', justifyContent: 'center', gap: '10px', fontWeight: 'bold' },
   buyActionBtn: { flex: 1, background: '#a855f7', color: '#fff', border: 'none', padding: '15px', borderRadius: '12px', fontWeight: 'bold' },
   inputEdit: { background: '#111', border: '1px solid #a855f7', color: '#fff', padding: '10px', width: '100%', marginBottom: '10px', borderRadius: '10px' },
+  notificationBadge: { position: 'absolute', top: -5, right: -5, background: '#ff0055', color: '#fff', fontSize: '8px', width: '15px', height: '15px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', border: '1px solid #000',boxShadow: '0 0 10px rgba(255,0,85,0.5)'
+  
+  },
 
 };
 
