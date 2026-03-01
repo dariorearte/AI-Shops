@@ -34,9 +34,26 @@ const App = () => {
   const [learningData, setLearningData] = useState([]);
   const [transcript, setTranscript] = useState("");
 
-      // ESTADOS DE GEOPOSICIÓN
+        // --- ESTADOS DE GEOPOSICIÓN NEURAL ---
   const [userLocation, setUserLocation] = useState(null); 
-  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [locationError, setLocationError] = useState(false); // SOLUCIONA EL ERROR 382
+  const setManualCity = async (city) => {
+    if (!city) return;
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org{city}`);
+      const data = await res.json();
+      if (data && data.length > 0) {
+        setUserLocation({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
+        setLocationError(false);
+        speak(`Radar desplegado sobre ${city}, señor.`);
+      } else {
+        speak("Coordenadas no encontradas en la red.");
+      }
+    } catch (e) {
+      speak("Fallo en el satélite de búsqueda.");
+    }
+  };
+
 
   const getGPS = () => {
     if ("geolocation" in navigator) {
@@ -60,24 +77,7 @@ const App = () => {
   useEffect(() => {
     getGPS();
   }, []);
-
-
-  // Función para cargar ciudad manualmente (Geocoding)
-  const setManualCity = async (city) => {
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org{city}`);
-      const data = await res.json();
-      if (data.length > 0) {
-        setUserLocation({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
-        setLocationError(false);
-        speak(`Desplegando radar sobre ${city}.`);
-      } else {
-        speak("Ciudad no encontrada en la red neural.");
-      }
-    } catch (e) {
-      speak("Error de conexión con el satélite de búsqueda.");
-    }
-  };
+  
 
   // --- MOTOR GEOGRÁFICO Y FILTROS ---
   const [radius, setRadius] = useState(15); // 1km a 500km
