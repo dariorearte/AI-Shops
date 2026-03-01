@@ -1,3 +1,5 @@
+import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -330,9 +332,26 @@ const App = () => {
               <div style={styles.searchBox}><Search size={16}/><input placeholder="Filtrar por rubro o producto..." style={styles.inputInv} /></div>
               
               <div style={styles.mapCanvas}>
-                 <div style={styles.userPin}><div style={styles.userPulse}/></div>
-                 {/* Aquí se inyectan los pins dinámicos de tiendas */}
-                 <div style={styles.radarInfo}>Escaneando {filterCategory === 'all' ? 'todos los rubros' : filterCategory}...</div>
+                <MapContainer center={[userLocation.lat, userLocation.lng]} zoom={13} style={{height: '100%', width: '100%'}} zoomControl={false}>
+                  <TileLayer
+                    url="https://{s}://{z}/{x}/{y}{r}.png"
+                    attribution='&copy; OpenStreetMap'
+                  />
+                  <Circle 
+                    center={[userLocation.lat, userLocation.lng]} 
+                    radius={radius * 1000} 
+                    pathOptions={{ color: '#a855f7', fillColor: '#a855f7', fillOpacity: 0.1 }} 
+                  />
+                  <Marker position={[userLocation.lat, userLocation.lng]}>
+                    <Popup>Señor, usted está aquí. <br/> Radio de inducción: {radius}km.</Popup>
+                  </Marker>
+                  {/* Pins de Tiendas Reales */}
+                  {stores.map(store => (
+                    <Marker key={store.id} position={[store.ubicacion.lat, store.ubicacion.lng]}>
+                      <Popup>{store.nombre}</Popup>
+                    </Marker>
+                  ))}
+                </MapContainer>
               </div>
               
               <div style={styles.radiusControl}>
