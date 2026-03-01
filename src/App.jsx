@@ -77,7 +77,24 @@ const App = () => {
   useEffect(() => {
     getGPS();
   }, []);
-  
+
+
+  // Función para cargar ciudad manualmente (Geocoding)
+  const setManualCity = async (city) => {
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org{city}`);
+      const data = await res.json();
+      if (data.length > 0) {
+        setUserLocation({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
+        setLocationError(false);
+        speak(`Desplegando radar sobre ${city}.`);
+      } else {
+        speak("Ciudad no encontrada en la red neural.");
+      }
+    } catch (e) {
+      speak("Error de conexión con el satélite de búsqueda.");
+    }
+  };
 
   // --- MOTOR GEOGRÁFICO Y FILTROS ---
   const [radius, setRadius] = useState(15); // 1km a 500km
