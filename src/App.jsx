@@ -41,13 +41,29 @@ const App = () => {
   const [stores, setStores] = useState([]);
   const [filterCategory, setFilterCategory] = useState('all');
 
+    // --- PUENTE DE AUTENTICACIÓN GOOGLE ---
+  const handleLogin = async () => {
+    speak("Iniciando protocolo de identificación con Google...");
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        // Esto asegura que Google sepa a dónde volver tras el login
+        redirectTo: window.location.origin 
+      }
+    });
+    if (error) {
+      console.error("Error de enlace:", error.message);
+      speak("Fallo en la sincronización de cuenta.");
+    }
+  };
+
   // Función de Búsqueda Manual (Corregida)  
     const setManualCity = async (city) => {
     if (!city) return;
     try {
       // URL CORREGIDA: Sin llaves, con parámetros reales de Nominatim
       const url = `https://nominatim.openstreetmap.org{encodeURIComponent(city)}`;
-      const res = await fetch(url);
+      const res = await fetch(`https://nominatim.openstreetmap.org{encodeURIComponent(city)}`);
       const data = await res.json();
       
       if (data && data.length > 0) {
@@ -354,7 +370,13 @@ const App = () => {
           <h1 style={styles.logoText}>N.E.O.N.</h1>
           <p style={{fontSize: '8px', opacity: 0.5}}>RADIO: {radius}KM | {profile?.rango || 'BRONCE'}</p>
         </div>
-        <div style={styles.avatarCircle}><User size={18} /></div>
+        <div style={styles.avatarCircle}><User size={18} />
+            <User 
+            size={20} 
+            onClick={handleLogin} // <--- ESTO ES LO QUE ACTIVA LA FUNCIÓN
+            style={{ cursor: 'pointer', color: '#a855f7' }} 
+          />
+        </div>
         <div style={{position: 'relative', cursor: 'pointer'}} onClick={() => { setUnreadCount(0); speak("Centro de notificaciones sincronizado."); }}>
             <Bell size={20} color={unreadCount > 0 ? '#a855f7' : '#fff'} />
             {unreadCount > 0 && (
@@ -372,67 +394,60 @@ const App = () => {
       {/* VIEWPORT DE TRIPLE PANEL */}
       <div style={styles.viewport}>
         <AnimatePresence mode="wait">
-          {/* PANEL IZQUIERDO: RADAR TÁCTICO GEOLOCALIZADO */}
-            {panel === 'left' && (
+
+          {/* PANEL IZQUIERDO: RADAR TÁCTICO GEOLOCALIZADO (SANEADO) */}
+          {panel === 'left' && (
             <motion.div key="left" initial={{ x: -300 }} animate={{ x: 0 }} style={styles.panel}>
-              <h3>RADAR TÁCTICO</h3>
+              <h3 style={styles.panelTitle}>RADAR TÁCTICO</h3>
               
-              {!userLocation ? (
-                <div style={styles.locationFallback}>
+              {/* BUSCADOR SIEMPRE VISIBLE Y CON PRIORIDAD (Z-INDEX) */}
+              {!userLocation && (
+                <div style={{...styles.locationFallback, position: 'relative', zIndex: 10000}}>
                   <p style={{fontSize: '12px', marginBottom: '15px', opacity: 0.7}}>
-                    {locationError ? "GPS BLOQUEADO" : "SINCRONIZANDO SATÉLITES..."}
+                    {locationError ? "GPS BLOQUEADO - MODO MANUAL" : "SINCRONIZANDO SATÉLITES..."}
                   </p>
                   <input 
                     type="text"
+                    autoFocus
                     placeholder="Ingrese ciudad (ej: Rosario, Argentina)" 
-                    style={styles.inputSearch}
+                    style={{...styles.inputSearch, pointerEvents: 'auto'}}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         setManualCity(e.target.value);
-                        e.target.value = ""; // Limpiamos para la próxima orden
+                        e.target.value = "";
                       }
                     }}
                   />
-
-                  <p style={{fontSize: '10px', marginTop: '10px'}}>Presione Enter para confirmar</p>
+                  <button onClick={getGPS} style={{marginTop: '15px', color: '#a855f7', fontSize: '11px', background: 'none', border: '1px solid #a855f7', padding: '8px 15px', borderRadius: '20px', cursor: 'pointer'}}>
+                    REINTENTAR GPS
+                  </button>
                 </div>
-              ) : (
-                <div style={styles.mapCanvas}>
-                  {!userLocation ? (
-                    <div style={styles.locationFallback}>
-                      <Navigation size={40} color="#a855f7" className="animate-pulse" />
-                      <p style={{marginTop: '20px', fontSize: '12px'}}>BUSCANDO SEÑAL...</p>
-                      <input 
-                        placeholder="O ingrese ciudad manualmente..." 
-                        style={styles.inputSearch}
-                        onKeyDown={(e) => e.key === 'Enter' && setManualCity(e.target.value)}
-                      />
-                      <button onClick={getGPS} style={{marginTop: '10px', color: '#a855f7', fontSize: '10px', background: 'none', border: 'none'}}>REINTENTAR GPS</button>
-                    </div>
-                  ) : (
-                    <MapContainer 
+              )}
+
+              {/* CONTENEDOR DEL MAPA (SOLO SI HAY UBICACIÓN) */}
+              {userLocation && (
+                <div style={{...styles.mapCanvas, height: '450px', borderRadius: '25px', overflow: 'hidden', border: '1px solid #1a1a1a'}}>
+                  <MapContainer 
+                    center={[userLocation.lat, userLocation.lng]} 
+                    zoom={13} 
+                    style={{height: '100%', width: '100%'}}
+                    zoomControl={false}
+                  >
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    <Circle 
                       center={[userLocation.lat, userLocation.lng]} 
-                      zoom={13} 
-                      style={{height: '100%', width: '100%'}}
-                      zoomControl={false}
-                    >
-                      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                      <Circle 
-                        center={[userLocation.lat, userLocation.lng]} 
-                        radius={radius * 1000} 
-                        pathOptions={{ color: '#a855f7', fillColor: '#a855f7', fillOpacity: 0.1 }} 
-                      />
-                      {/* EL PIN DE SU UBICACIÓN REAL */}
-                      <Marker position={[userLocation.lat, userLocation.lng]}>
-                        <Popup>Señor, usted está aquí.</Popup>
-                      </Marker>
-                    </MapContainer>
-                  )}
+                      radius={radius * 1000} 
+                      pathOptions={{ color: '#a855f7', fillColor: '#a855f7', fillOpacity: 0.1 }} 
+                    />
+                    <Marker position={[userLocation.lat, userLocation.lng]}>
+                      <Popup>Usted está aquí, Comandante.</Popup>
+                    </Marker>
+                  </MapContainer>
                 </div>
-
               )}
             </motion.div>
           )}
+
 
           {/* PANEL CENTRAL: PRIME FEED (MARKETPLACE DE TIENDAS) */}
                     {panel === 'center' && (
