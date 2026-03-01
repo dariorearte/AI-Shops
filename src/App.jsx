@@ -34,7 +34,7 @@ const App = () => {
   const [learningData, setLearningData] = useState([]);
   const [transcript, setTranscript] = useState("");
 
-    // ESTADOS DE GEOPOSICIÓN
+      // ESTADOS DE GEOPOSICIÓN
   const [userLocation, setUserLocation] = useState(null); 
   const [showLocationModal, setShowLocationModal] = useState(false);
 
@@ -390,7 +390,7 @@ const App = () => {
                 </div>
               ) : (
                 <div style={styles.mapCanvas}>
-                    {!userLocation ? (
+                  {!userLocation ? (
                     <div style={styles.locationFallback}>
                       <Navigation size={40} color="#a855f7" className="animate-pulse" />
                       <p style={{marginTop: '20px', fontSize: '12px'}}>BUSCANDO SEÑAL...</p>
