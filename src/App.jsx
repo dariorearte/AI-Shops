@@ -17,6 +17,7 @@ const App = () => {
   const [profile, setProfile] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [hasNotifiedCategory, setHasNotifiedCategory] = useState(null); // Evita repeticiones
+  const [socialItems, setSocialItems] = useState([]); // Canal exclusivo C2C
 
 
   // --- INTELIGENCIA NEURAL (N.E.O.N. AI) ---
@@ -154,9 +155,14 @@ const App = () => {
     fileInput.click();
   };
 
-  const fetchGlobalMarket = async () => {
-    const { data } = await supabase.from('productos').select('*').limit(20);
-    setMarketItems(data || []);
+    const fetchGlobalMarket = async () => {
+    // Canal A: Productos de Tiendas (B2C)
+    const { data: B2C } = await supabase.from('productos').select('*').limit(20);
+    setMarketItems(B2C || []);
+
+    // Canal B: Artículos de Usuarios (C2C)
+    const { data: C2C } = await supabase.from('marketplace_c2c').select('*').order('created_at', { ascending: false });
+    setSocialItems(C2C || []);
   };
 
     // --- MOTOR DE INDUCCIÓN NEURAL (N.E.O.N. BRAIN) ---
@@ -327,49 +333,33 @@ const App = () => {
 
 
           {/* PANEL DERECHO: NEURAL MARKETPLACE (C2C SOCIAL) */}
-            {panel === 'right' && (
-            <motion.div key="right" initial={{ x: 500 }} animate={{ x: 0 }} exit={{ x: 500 }} style={styles.panelFull}>
+                      {panel === 'right' && (
+            <motion.div key="right" initial={{ x: 300 }} animate={{ x: 0 }} exit={{ x: 300 }} style={styles.panelFull}>
               <div style={styles.marketHeader}>
                 <h3>NEURAL MARKETPLACE</h3>
-                {/* ESTE ES EL BOTÓN QUE ACTIVA LA CARGA C2C */}
-                <PlusCircle 
-                  size={24} 
-                  color="#a855f7" 
-                  onClick={handleSocialPost} 
-                  style={{cursor:'pointer'}}
-                />
-              </div>
-              
-              {/* MINI CHAT INTEGRADO */}
-              <div style={styles.chatBox}>
-                <div style={styles.chatMessage}>
-                  <p style={{fontSize:'10px', color:'#a855f7'}}>N.E.O.N. SECURITY</p>
-                  <p style={{fontSize:'11px'}}>Chat cifrado activo. No comparta datos fuera de la App.</p>
-                </div>
+                <PlusCircle size={24} color="#a855f7" onClick={handleSocialPost} style={{cursor:'pointer'}} />
               </div>
 
-              {/* GRILLA DE ARTÍCULOS SOCIALES */}
               <div style={styles.socialGrid}>
-                {marketItems.map(item => (
+                {socialItems.length > 0 ? socialItems.map(item => (
                   <div key={item.id} style={styles.socialCard}>
-                     <div style={styles.socialImg}>
-                        {/* Si tiene fotos en el array, mostramos la primera, sino el icono */}
-                        {item.fotos && item.fotos.length > 0 ? (
-                          <img src={item.fotos[0]} style={{width:'100%', height:'100%', objectFit:'cover'}} />
-                        ) : (
-                          <LayoutGrid size={20} opacity={0.1}/>
-                        )}
-                     </div>
-                     <div style={styles.socialMeta}>
-                        <b style={{fontSize:'10px'}}>{item.nombre}</b>
-                        <button style={styles.chatBtn} onClick={() => speak(`Iniciando chat por ${item.nombre}`)}>CONSULTAR</button>
-                     </div>
+                    <div style={styles.socialImg}>
+                       {/* Mostramos la primera foto del array 'fotos' */}
+                       <img src={item.fotos?.[0] || 'https://via.placeholder.com'} style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                    </div>
+                    <div style={styles.socialMeta}>
+                       <b style={{fontSize:'11px'}}>{item.nombre}</b>
+                       <span style={{color:'#a855f7', fontSize:'10px'}}>${item.precio}</span>
+                       <button style={styles.chatBtn} onClick={() => speak(`Iniciando negociación por ${item.nombre}`)}>CONSULTAR</button>
+                    </div>
                   </div>
-                ))}
+                )) : (
+                  <p style={{fontSize:'10px', opacity:0.5, textAlign:'center', gridColumn:'1/3'}}>No hay artículos sociales en su zona aún.</p>
+                )}
               </div>
             </motion.div>
           )}
-
+          
         </AnimatePresence>
       </div>
 
