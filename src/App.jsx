@@ -109,6 +109,51 @@ const App = () => {
     }
   };
 
+    // --- INYECCIÓN QUIRÚRGICA: MOTOR C2C ---
+  const handleSocialPost = async () => {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file'; 
+    fileInput.accept = 'image/*'; 
+    fileInput.multiple = true;
+    
+    fileInput.onchange = async (e) => {
+      const files = Array.from(e.target.files);
+      if (files.length === 0) return;
+
+      const nombre = prompt("¿Qué artículo desea publicar en el Marketplace?");
+      const precio = prompt("Ingrese el precio en créditos:");
+      
+      if (!nombre || !precio) return speak("Publicación cancelada por falta de datos.");
+
+      speak("Sincronizando con la red neural... Por favor, aguarde.");
+
+      try {
+        const uploadPromises = files.map(async (file) => {
+          const fileName = `c2c-${Date.now()}-${file.name}`;
+          const { data } = await supabase.storage.from('productos-fotos').upload(fileName, file);
+          const { data: urlData } = supabase.storage.from('productos-fotos').getPublicUrl(fileName);
+          return urlData.publicUrl;
+        });
+
+        const urls = await Promise.all(uploadPromises);
+
+        await supabase.from('marketplace_c2c').insert([{
+          vendedor_id: session.user.id,
+          nombre,
+          precio: parseFloat(precio),
+          fotos: urls
+        }]);
+
+        speak("Artículo publicado con éxito en el ecosistema social.");
+        fetchGlobalMarket(); 
+      } catch (err) {
+        speak("Error en el protocolo de subida.");
+        console.error(err);
+      }
+    };
+    fileInput.click();
+  };
+
   const fetchGlobalMarket = async () => {
     const { data } = await supabase.from('productos').select('*').limit(20);
     setMarketItems(data || []);
