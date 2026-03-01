@@ -265,64 +265,6 @@ const App = () => {
     </div>
   );
 
-    {/* OVERLAY DE DETALLE DE ARTÍCULO (ESTILO MARKETPLACE PRO) */}
-  <AnimatePresence>
-    {selectedItem && (
-      <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} style={styles.detailOverlay}>
-        <div style={styles.detailHeader}>
-          <button onClick={() => { setSelectedItem(null); setIsEditing(false); }} style={styles.backBtn}>✕</button>
-          <h3>DETALLE DEL ARTÍCULO</h3>
-          {selectedItem.vendedor_id === session.user.id && (
-            <button onClick={() => setIsEditing(!isEditing)} style={styles.editBtn}>
-              {isEditing ? 'GUARDAR' : 'EDITAR'}
-            </button>
-          )}
-        </div>
-
-        <div style={styles.detailScroll}>
-          {/* Carrusel de Fotos */}
-          <div style={styles.detailGallery}>
-            {selectedItem.fotos?.map((f, i) => (
-              <img key={i} src={f} style={styles.galleryImg} alt="Preview" />
-            ))}
-          </div>
-
-          <div style={styles.detailContent}>
-            {isEditing ? (
-              <div style={styles.editForm}>
-                <input defaultValue={selectedItem.nombre} style={styles.inputEdit} />
-                <input defaultValue={selectedItem.precio} style={styles.inputEdit} />
-                <textarea defaultValue={selectedItem.descripcion || 'Sin descripción'} style={styles.textEdit} />
-              </div>
-            ) : (
-              <>
-                <h2 style={styles.detailTitle}>{selectedItem.nombre}</h2>
-                <b style={styles.detailPrice}>$ {new Intl.NumberFormat('es-AR').format(selectedItem.precio)}</b>
-                <p style={styles.detailDesc}>{selectedItem.descripcion || 'El vendedor no proporcionó una descripción neural.'}</p>
-                
-                <div style={styles.sellerInfo}>
-                  <div style={styles.avatarMini}><User size={14}/></div>
-                  <p>Vendedor: {selectedItem.vendedor_id === session.user.id ? 'Tú (Propietario)' : 'Usuario N.E.O.N.'}</p>
-                </div>
-              </>
-            )}
-
-            {selectedItem.vendedor_id !== session.user.id && (
-              <div style={styles.actionGroup}>
-                <button style={styles.chatActionBtn} onClick={() => speak("Iniciando chat seguro...")}>
-                  <MessageCircle size={18} /> ENVIAR MENSAJE
-                </button>
-                <button style={styles.buyActionBtn} onClick={() => speak("Procesando compra directa...")}>
-                  COMPRAR AHORA
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </motion.div>
-    )}
-  </AnimatePresence>
-
   return (
     <div style={styles.container}>
       {/* HEADER PREMIUM */}
@@ -402,7 +344,14 @@ const App = () => {
 
               <div style={styles.socialGrid}>
                 {socialItems.length > 0 ? socialItems.map(item => (
-                  <div key={item.id} style={styles.socialCard} onClick={() => setSelectedItem(item)}>
+                    <div key={item.id} style={styles.socialCard} onClick={() => {setSelectedItem(item);
+                    if (item.vendedor_id === session.user.id) {
+                      speak(`Abriendo su publicación: ${item.nombre}. Modo edición disponible.`);
+                      } else {
+                      speak(`Analizando artículo: ${item.nombre}.`);
+                    }
+                  }}>
+
                     <div style={styles.socialImg}>
                        {/* Mostramos la primera foto del array 'fotos' */}
                        <img src={item.fotos?.[0] || 'https://via.placeholder.com'} style={{width:'100%', height:'100%', objectFit:'cover'}} />
@@ -444,6 +393,64 @@ const App = () => {
              </div>
           </motion.div>
         )}
+        {/* OVERLAY DE DETALLE DE ARTÍCULO (ESTILO MARKETPLACE PRO) */}
+  <AnimatePresence>
+    {selectedItem && (
+      <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} style={styles.detailOverlay}>
+        <div style={styles.detailHeader}>
+          <button onClick={() => { setSelectedItem(null); setIsEditing(false); }} style={styles.backBtn}>✕</button>
+          <h3>DETALLE DEL ARTÍCULO</h3>
+          {selectedItem.vendedor_id === session.user.id && (
+            <button onClick={() => setIsEditing(!isEditing)} style={styles.editBtn}>
+              {isEditing ? 'GUARDAR' : 'EDITAR'}
+            </button>
+          )}
+        </div>
+
+        <div style={styles.detailScroll}>
+          {/* Carrusel de Fotos */}
+          <div style={styles.detailGallery}>
+            {selectedItem.fotos?.map((f, i) => (
+              <img key={i} src={f} style={styles.galleryImg} alt="Preview" />
+            ))}
+          </div>
+
+          <div style={styles.detailContent}>
+            {isEditing ? (
+              <div style={styles.editForm}>
+                <input defaultValue={selectedItem.nombre} style={styles.inputEdit} />
+                <input defaultValue={selectedItem.precio} style={styles.inputEdit} />
+                <textarea defaultValue={selectedItem.descripcion || 'Sin descripción'} style={styles.textEdit} />
+              </div>
+            ) : (
+              <>
+                <h2 style={styles.detailTitle}>{selectedItem.nombre}</h2>
+                <b style={styles.detailPrice}>{new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(selectedItem.precio)}</b>
+                <b style={styles.detailPrice}>$ {new Intl.NumberFormat('es-AR').format(selectedItem.precio)}</b>
+                <p style={styles.detailDesc}>{selectedItem.descripcion || 'El vendedor no proporcionó una descripción neural.'}</p>
+                
+                <div style={styles.sellerInfo}>
+                  <div style={styles.avatarMini}><User size={14}/></div>
+                  <p>Vendedor: {selectedItem.vendedor_id === session.user.id ? 'Tú (Propietario)' : 'Usuario N.E.O.N.'}</p>
+                </div>
+              </>
+            )}
+
+            {selectedItem.vendedor_id !== session.user.id && (
+              <div style={styles.actionGroup}>
+                <button style={styles.chatActionBtn} onClick={() => speak("Iniciando chat seguro...")}>
+                  <MessageCircle size={18} /> ENVIAR MENSAJE
+                </button>
+                <button style={styles.buyActionBtn} onClick={() => speak("Procesando compra directa...")}>
+                  COMPRAR AHORA
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    )}
+  </AnimatePresence>
       </AnimatePresence>
     </div>
   );
