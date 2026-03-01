@@ -54,45 +54,35 @@ const App = () => {
     }
   };
 
-    // --- FUNCIÓN DE BÚSQUEDA MANUAL (REPARADA) ---  
+      // --- FUNCIÓN DE BÚSQUEDA MANUAL (REPARADA CON CIERRES EXACTOS) ---  
   const setManualCity = async (city) => {
     if (!city) return;
     try {
       const url = `https://nominatim.openstreetmap.org{encodeURIComponent(city)}`;
       const res = await fetch(url);
       const data = await res.json();
-      
       if (data && data.length > 0) {
-        setUserLocation({ 
-          lat: parseFloat(data[0].lat), 
-          lng: parseFloat(data[0].lon) 
-        });
+        setUserLocation({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
         setLocationError(false);
-        speak(`Radar desplegado sobre ${city}, señor.`);
-      } else {
-        speak("Coordenadas no encontradas en la red neural.");
+        speak(`Radar desplegado sobre ${city}.`);
       }
     } catch (e) {
-      console.error("Fallo en Geocoding:", e);
-      speak("Fallo en el satélite de búsqueda.");
+      console.error("Error geo", e);
     }
-  }; // <--- ESTA LLAVE CIERRA LA FUNCIÓN
+  }; // <--- ESTA LLAVE DEBE EXISTIR
 
-  // --- EFECTO DE ARRANQUE NEURAL ---
   useEffect(() => {
-    const initializeSession = async () => {
+    const initSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
-      
       if (session) {
         fetchProfile(session.user.id);
-        // initializeRealtime(session.user.id); // Active esto cuando la función esté lista
+        initializeRealtime(session.user.id);
       }
     };
-
-    initializeSession();
+    initSession();
     fetchGlobalMarket();
-  }, []); // <--- ESTA LLAVE Y PARÉNTESIS CIERRAN EL USEEFFECT
+  }, []); // <--- ESTE CIERRE DEBE EXISTIR
 
   
   const getGPS = () => {
@@ -513,8 +503,7 @@ const App = () => {
             </motion.div>
           )}
 
-
-          {/* PANEL DERECHO: NEURAL MARKETPLACE (C2C SOCIAL) */}
+                    {/* PANEL DERECHO: NEURAL MARKETPLACE (C2C SOCIAL) */}
           {panel === 'right' && (
             <motion.div key="right" initial={{ x: 300 }} animate={{ x: 0 }} exit={{ x: 300 }} style={styles.panelFull}>
               <div style={styles.marketHeader}>
@@ -524,22 +513,21 @@ const App = () => {
 
               <div style={styles.socialGrid}>
                 {socialItems.length > 0 ? socialItems.map(item => (
-                    <div key={item.id} style={styles.socialCard} onClick={() => {setSelectedItem(item);
-                    if (item.vendedor_id === session.user.id) {
-                      speak(`Abriendo su publicación: ${item.nombre}. Modo edición disponible.`);
-                      } else {
+                  <div key={item.id} style={styles.socialCard} onClick={() => {
+                    setSelectedItem(item);
+                    if (item.vendedor_id === session?.user?.id) {
+                      speak(`Abriendo su publicación: ${item.nombre}.`);
+                    } else {
                       speak(`Analizando artículo: ${item.nombre}.`);
                     }
                   }}>
-
                     <div style={styles.socialImg}>
-                       {/* Mostramos la primera foto del array 'fotos' */}
-                       <img src={item.fotos?.[0] || 'https://via.placeholder.com'} style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                       <img src={item.fotos?.[0] || 'https://via.placeholder.com'} style={{width:'100%', height:'100%', objectFit:'cover'}} alt="Item" />
                     </div>
                     <div style={styles.socialMeta}>
                        <b style={{fontSize:'11px'}}>{item.nombre}</b>
                        <span style={{color:'#a855f7', fontSize:'10px'}}>${item.precio}</span>
-                       <button style={styles.chatBtn} onClick={() => speak(`Iniciando negociación por ${item.nombre}`)}>CONSULTAR</button>
+                       <button style={styles.chatBtn} onClick={(e) => { e.stopPropagation(); speak(`Iniciando negociación por ${item.nombre}`); }}>CONSULTAR</button>
                     </div>
                   </div>
                 )) : (
@@ -548,11 +536,10 @@ const App = () => {
               </div>
             </motion.div>
           )}
-          
         </AnimatePresence>
       </div>
 
-      {/* NAVEGACIÓN FLOTANTE */}
+      {/* NAVEGACIÓN FLOTANTE (SÓLO UNA VEZ) */}
       <nav style={styles.bottomNav}>
         <button onClick={() => setPanel('left')} style={panel === 'left' ? styles.activeIcon : styles.navIcon}><Map size={22}/></button>
         <button onClick={() => setPanel('center')} style={panel === 'center' ? styles.activeIcon : styles.navIcon}><ShoppingBag size={22}/></button>
@@ -566,7 +553,7 @@ const App = () => {
 
       <AnimatePresence>
         {isAiActive && (
-          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} style={styles.aiOverlay}>
+          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} style={styles.aiOverlay} key="ai-layer">
              <p style={styles.aiTranscript}>{transcript || "ESCUCHANDO ORDEN NEURAL..."}</p>
              <div style={styles.aiWaveform}>
                 {[1,2,3,4,5].map(i => <motion.div key={i} animate={{ height: [10, 40, 10] }} transition={{ repeat: Infinity, delay: i*0.1 }} style={styles.waveBar} />)}
@@ -576,7 +563,7 @@ const App = () => {
 
         {/* OVERLAY DE DETALLE DE ARTÍCULO */}
         {selectedItem && (
-          <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} style={styles.detailOverlay}>
+          <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} style={styles.detailOverlay} key="detail-layer">
             <div style={styles.detailHeader}>
               <button onClick={() => { setSelectedItem(null); setIsEditing(false); }} style={{background:'none', border:'none', color:'#fff', fontSize:'20px'}}>✕</button>
               <h3>DETALLE DEL ARTÍCULO</h3>
@@ -617,12 +604,6 @@ const App = () => {
           </motion.div>
         )}
       </AnimatePresence>
-
-      <nav style={styles.bottomNav}>
-        <button onClick={() => setPanel('left')} style={panel === 'left' ? styles.activeIcon : styles.navIcon}><Map size={22}/></button>
-        <button onClick={() => setPanel('center')} style={panel === 'center' ? styles.activeIcon : styles.navIcon}><ShoppingBag size={22}/></button>
-        <button onClick={() => setPanel('right')} style={panel === 'right' ? styles.activeIcon : styles.navIcon}><LayoutGrid size={22}/></button>
-      </nav>
     </div>
   );
 };
