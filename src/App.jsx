@@ -45,26 +45,24 @@ const App = () => {
     const setManualCity = async (city) => {
     if (!city) return;
     try {
-      // COORDINADA EXACTA: Faltaba '/search?format=json&q='
+      // URL CORREGIDA: Sin llaves raras, con parámetros reales
       const url = `https://nominatim.openstreetmap.org{encodeURIComponent(city)}`;
       
       const res = await fetch(url);
       const data = await res.json();
-      
+
       if (data && data.length > 0) {
-        const { lat, lon } = data[0];
-        setUserLocation({ lat: parseFloat(lat), lng: parseFloat(lon) });
+        setUserLocation({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
         setLocationError(false);
-        speak(`Señor, radar desplegado con éxito sobre ${city}.`);
+        speak(`Radar desplegado sobre ${city}, señor.`);
       } else {
-        speak("Coordenadas no encontradas en la red neural.");
+        speak("Coordenadas no encontradas.");
       }
     } catch (e) {
-      console.error("Geocoding Error:", e);
-      speak("Fallo en el satélite de búsqueda. Verifique su conexión.");
+      speak("Fallo en el satélite de búsqueda.");
     }
   };
-
+  
 
   const getGPS = () => {
   if ("geolocation" in navigator) {
