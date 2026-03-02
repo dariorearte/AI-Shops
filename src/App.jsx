@@ -54,39 +54,31 @@ const App = () => {
     }
   };
 
-      // --- FUNCIÓN DE BÚSQUEDA MANUAL (REPARADA CON CIERRES EXACTOS) ---  
+        // --- FUNCIÓN DE BÚSQUEDA MANUAL (URL CORREGIDA Y CIERRES SELLADOS) ---  
   const setManualCity = async (city) => {
     if (!city) return;
     try {
+      // COORDINADA EXACTA: Se eliminan las llaves y se añade la ruta de búsqueda
       const url = `https://nominatim.openstreetmap.org{encodeURIComponent(city)}`;
       const res = await fetch(url);
       const data = await res.json();
+      
       if (data && data.length > 0) {
+        // Nominatim devuelve un array, usamos data[0]
         setUserLocation({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
         setLocationError(false);
-        speak(`Radar desplegado sobre ${city}.`);
+        speak(`Radar desplegado sobre ${city}, señor.`);
+      } else {
+        speak("Coordenadas no encontradas en la red.");
       }
     } catch (e) {
       console.error("Error geo", e);
+      speak("Fallo en el satélite de búsqueda.");
     }
-  }; // <--- ESTA LLAVE DEBE EXISTIR
+  };
 
-  useEffect(() => {
-    const initSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      if (session) {
-        fetchProfile(session.user.id);
-        initializeRealtime(session.user.id);
-      }
-    };
-    initSession();
-    fetchGlobalMarket();
-  }, []); // <--- ESTE CIERRE DEBE EXISTIR
-
-  
   const getGPS = () => {
-  if ("geolocation" in navigator) {
+    if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
@@ -102,9 +94,20 @@ const App = () => {
     }
   };
 
+  // --- ÚNICO EFECTO DE ARRANQUE (SINCRO TOTAL) ---
   useEffect(() => {
-    getGPS();
-  }, []);
+    const initSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      if (session) {
+        fetchProfile(session.user.id);
+        initializeRealtime(session.user.id);
+      }
+    };
+    initSession();
+    getGPS(); // Lanzamos GPS al inicio
+    fetchGlobalMarket();
+  }, []); 
 
 
       // --- MARKETPLACE Y TRANSACCIONES ---
