@@ -328,18 +328,23 @@ const App = () => {
 
         const urls = await Promise.all(uploadPromises);
 
+                // --- INSERCIÓN REPARADA ---
         const { error: insertError } = await supabase.from('marketplace_c2c').insert([{
           vendedor_id: session.user.id,
-          nombre,
+          nombre: nombre,
           precio: parseFloat(precio),
-          fotos: urls,
-          estado_articulo: 'disponible'
+          fotos: urls, // Asegúrese de que 'urls' sea un Array [url1, url2]
+          descripcion: "Publicado vía N.E.O.N. Omega"
         }]);
 
-        if (!insertError) {
-          speak("Artículo publicado con éxito en el ecosistema social. Los Ryders ya pueden ver la logística.");
+        if (insertError) {
+          console.error("Fallo de esquema:", insertError.message);
+          speak("Error de sintaxis en la base de datos.");
+        } else {
+          speak("Artículo sincronizado con éxito.");
           fetchGlobalMarket(); 
         }
+
       } catch (err) {
         console.error(err);
         speak("Error en el protocolo de subida de archivos.");
