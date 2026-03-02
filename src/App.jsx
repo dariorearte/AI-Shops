@@ -40,17 +40,22 @@ const App = () => {
   const [stores, setStores] = useState([]);
   const [filterCategory, setFilterCategory] = useState('all');
 
-  // --- PUENTE DE AUTENTICACIÓN GOOGLE ---
+    // --- PUENTE DE AUTENTICACIÓN GOOGLE (BLINDADO) ---
   const handleLogin = async () => {
-    speak("Iniciando protocolo de identificación con Google...");
+    // Verificamos si speak existe, si no, usamos console.log para no romper la App
+    const notify = typeof speak === 'function' ? speak : console.log;
+    notify("Iniciando protocolo de identificación con Google...");
+    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {redirectTo: window.location.origin
+      options: {
+        redirectTo: window.location.origin
       }
     });
+
     if (error) {
       console.error("Error de enlace:", error.message);
-      speak("Fallo en la sincronización de cuenta.");
+      if (typeof speak === 'function') speak("Fallo en la sincronización de cuenta.");
     }
   };
 
