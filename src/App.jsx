@@ -121,13 +121,21 @@ const App = () => {
   };
 
   // --- ÚNICO EFECTO DE ARRANQUE (SINCRONIZACIÓN TOTAL) ---
-  useEffect(() => {
+    useEffect(() => {
+    // --- ESCUCHADOR DE SESIÓN (ESTO ACTIVA EL LOGIN) ---
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) {
+        fetchProfile(session.user.id);
+        initializeRealtime(session.user.id);
+      }
+    });
+
     const initSession = async () => {
       const { data: { session: activeSession } } = await supabase.auth.getSession();
       setSession(activeSession);
-      
+
       if (activeSession) {
-        // Usamos el ID real de la sesión para evitar ReferenceError
         fetchProfile(activeSession.user.id);
         initializeRealtime(activeSession.user.id);
       }
@@ -136,6 +144,8 @@ const App = () => {
     initSession();
     getGPS();
     fetchGlobalMarket();
+
+    return () => subscription.unsubscribe(); // Limpieza táctica
   }, []);
 
 //BLOQUE 3: NÚCLEO DE DATOS Y CANALES REAL-TIME//
